@@ -16,7 +16,7 @@ A modern, premium school schedule management application built with React, TypeS
 
 ### Prerequisites
 
-- Node.js 16+ 
+- Node.js 16+
 - npm or yarn
 
 ### Installation
