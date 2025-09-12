@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Plus, Settings, HelpCircle, Calendar, Users, BookOpen, Clock, Moon, Sun } from "lucide-react"
+import { Plus, Settings, HelpCircle, Calendar, Clock, Moon, Sun } from "lucide-react"
 import schoolBackground from "@/assets/school-background.jpg"
 import { useTheme } from "next-themes"
 
@@ -89,29 +89,29 @@ export const HomeScreen = ({ onCreateSchedule }: HomeScreenProps) => {
           </div>
         </div>
 
-        {/* Right Action Panel - Premium Glass */}
-        <div className="w-96 p-8 flex flex-col justify-between bg-background/10 backdrop-blur-3xl border-l border-border/20">
+        {/* Right Action Panel - Solid Premium */}
+        <div className="w-96 p-8 flex flex-col justify-between bg-background border-l border-border/20 shadow-2xl">
           {/* Main Actions */}
           <div className="space-y-8 pt-16">
             {/* Primary Action Button */}
             <Button 
               onClick={onCreateSchedule}
-              className="w-full h-20 acrylic-card border-0 rounded-2xl group transition-all duration-500 hover:scale-105 hover:shadow-2xl"
+              className="w-full h-20 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 border-0 rounded-2xl group transition-all duration-500 hover:scale-105 hover:shadow-2xl shadow-lg"
             >
               <div className="flex items-center justify-center space-x-4 space-x-reverse">
-                <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30 group-hover:bg-primary/30 transition-colors duration-300">
-                  <Plus className="w-6 h-6 text-primary group-hover:rotate-180 transition-transform duration-500" />
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center border border-white/30 group-hover:bg-white/30 transition-colors duration-300">
+                  <Plus className="w-6 h-6 text-white group-hover:rotate-180 transition-transform duration-500" />
                 </div>
-                <span className="text-xl font-semibold text-primary">إنشاء جدول أسبوعي جديد</span>
+                <span className="text-xl font-semibold text-white">إنشاء جدول أسبوعي جديد</span>
               </div>
             </Button>
             
             {/* Secondary Action Button */}
             <Button 
-              variant="glass" 
+              variant="outline" 
               size="lg" 
               disabled 
-              className="w-full h-16 acrylic-card border-0 rounded-2xl opacity-70 hover:opacity-90 transition-opacity duration-300"
+              className="w-full h-16 bg-muted/50 border-border/30 rounded-2xl opacity-70 hover:opacity-90 transition-opacity duration-300"
             >
               <div className="flex items-center justify-center space-x-3 space-x-reverse">
                 <Plus className="w-5 h-5 text-muted-foreground" />
@@ -119,22 +119,25 @@ export const HomeScreen = ({ onCreateSchedule }: HomeScreenProps) => {
               </div>
             </Button>
 
-            {/* Features Preview - Premium Cards */}
+            {/* Quick Stats Section - Replacing unnecessary cards */}
             <div className="space-y-6 pt-12">
-              <div className="acrylic-card rounded-2xl p-6 text-center border-0 border-t border-t-primary/10 transition-all duration-300 hover:border-t-primary/30">
-                <div className="w-14 h-14 bg-primary/20 rounded-2xl mx-auto mb-4 flex items-center justify-center border border-primary/20">
-                  <BookOpen className="w-7 h-7 text-primary" />
+              <div className="bg-gradient-to-br from-primary/5 to-secondary/5 rounded-2xl p-6 border border-border/20">
+                <h4 className="font-semibold mb-3 text-foreground text-lg flex items-center">
+                  <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center mr-3 border border-primary/20">
+                    <Calendar className="w-4 h-4 text-primary" />
+                  </div>
+                  إحصائيات سريعة
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-primary">0</p>
+                    <p className="text-sm text-muted-foreground">جداول</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-secondary">0</p>
+                    <p className="text-sm text-muted-foreground">حصص</p>
+                  </div>
                 </div>
-                <h4 className="font-semibold mb-3 text-foreground text-lg">إدارة المواد</h4>
-                <p className="text-sm text-muted-foreground opacity-90 leading-relaxed">تنظيم المواد والحصص بسهولة مع واجهة بديهية</p>
-              </div>
-
-              <div className="acrylic-card rounded-2xl p-6 text-center border-0 border-t border-t-secondary/10 transition-all duration-300 hover:border-t-secondary/30">
-                <div className="w-14 h-14 bg-secondary/20 rounded-2xl mx-auto mb-4 flex items-center justify-center border border-secondary/20">
-                  <Users className="w-7 h-7 text-secondary" />
-                </div>
-                <h4 className="font-semibold mb-3 text-foreground text-lg">جدولة المعلمين</h4>
-                <p className="text-sm text-muted-foreground opacity-90 leading-relaxed">إدارة جداول المعلمين بذكاء وتوزيع متوازن</p>
               </div>
             </div>
           </div>
