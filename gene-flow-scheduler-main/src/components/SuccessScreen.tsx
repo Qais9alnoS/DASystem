@@ -28,11 +28,11 @@ export const SuccessScreen = ({ onGoToDashboard }: SuccessScreenProps) => {
         {/* Success Message */}
         <div className={`space-y-4 transition-all duration-1000 ${showContent ? 'animate-fade-in' : 'opacity-0'}`}>
           <h1 className="text-4xl font-bold gradient-text">
-            Schedule Created Successfully!
+            تم إنشاء الجدول بنجاح!
           </h1>
           <p className="text-xl text-muted-foreground max-w-lg mx-auto">
-            Your weekly schedule has been generated and is ready for use. 
-            The system has optimized the timetable based on your requirements.
+            تم إنشاء الجدول الأسبوعي الخاص بك وهو جاهز للاستخدام.
+            قام النظام بتحسين الجدول الزمني بناءً على متطلباتك.
           </p>
         </div>
 
@@ -42,9 +42,9 @@ export const SuccessScreen = ({ onGoToDashboard }: SuccessScreenProps) => {
             <div className="w-12 h-12 bg-gradient-primary rounded-xl mx-auto mb-4 flex items-center justify-center">
               <Calendar className="w-6 h-6 text-white" />
             </div>
-            <h3 className="font-semibold mb-2">View Schedule</h3>
+            <h3 className="font-semibold mb-2">عرض الجدول</h3>
             <p className="text-sm text-muted-foreground">
-              See the complete weekly timetable
+              شاهد الجدول الأسبوعي الكامل
             </p>
           </Card>
 
@@ -52,9 +52,9 @@ export const SuccessScreen = ({ onGoToDashboard }: SuccessScreenProps) => {
             <div className="w-12 h-12 bg-gradient-secondary rounded-xl mx-auto mb-4 flex items-center justify-center">
               <Download className="w-6 h-6 text-secondary-foreground" />
             </div>
-            <h3 className="font-semibold mb-2">Export</h3>
+            <h3 className="font-semibold mb-2">تصدير</h3>
             <p className="text-sm text-muted-foreground">
-              Download as PDF or Excel
+              تحميل كملف PDF أو Excel
             </p>
           </Card>
 
@@ -62,9 +62,9 @@ export const SuccessScreen = ({ onGoToDashboard }: SuccessScreenProps) => {
             <div className="w-12 h-12 bg-gradient-accent rounded-xl mx-auto mb-4 flex items-center justify-center">
               <Share className="w-6 h-6 text-white" />
             </div>
-            <h3 className="font-semibold mb-2">Share</h3>
+            <h3 className="font-semibold mb-2">مشاركة</h3>
             <p className="text-sm text-muted-foreground">
-              Send to teachers and staff
+              إرسال إلى المعلمين والموظفين
             </p>
           </Card>
         </div>
@@ -78,29 +78,29 @@ export const SuccessScreen = ({ onGoToDashboard }: SuccessScreenProps) => {
             className="group"
           >
             <Settings className="w-6 h-6 mr-3 group-hover:rotate-180 transition-transform duration-300" />
-            Go to Dashboard
+            الذهاب إلى لوحة التحكم
           </Button>
         </div>
 
         {/* Additional Info */}
         <div className={`bg-muted/30 rounded-2xl p-6 transition-all duration-1000 delay-700 ${showContent ? 'animate-fade-in' : 'opacity-0'}`}>
-          <h4 className="font-semibold mb-3 text-muted-foreground">Schedule Summary</h4>
+          <h4 className="font-semibold mb-3 text-muted-foreground">ملخص الجدول</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <div className="font-semibold text-primary">12</div>
-              <div className="text-muted-foreground">Classes</div>
+              <div className="text-muted-foreground">فصول</div>
             </div>
             <div>
               <div className="font-semibold text-secondary">8</div>
-              <div className="text-muted-foreground">Subjects</div>
+              <div className="text-muted-foreground">مواد</div>
             </div>
             <div>
               <div className="font-semibold text-accent">15</div>
-              <div className="text-muted-foreground">Teachers</div>
+              <div className="text-muted-foreground">معلمين</div>
             </div>
             <div>
               <div className="font-semibold text-primary">5</div>
-              <div className="text-muted-foreground">Days</div>
+              <div className="text-muted-foreground">أيام</div>
             </div>
           </div>
         </div>

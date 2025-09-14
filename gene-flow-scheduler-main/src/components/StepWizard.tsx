@@ -73,12 +73,12 @@ export const StepWizard = ({
               {canGoBack && onBack && (
                 <Button variant="outline" onClick={onBack}>
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back
+                  رجوع
                 </Button>
               )}
               {showSkip && onSkip && (
                 <Button variant="ghost" onClick={onSkip}>
-                  Skip
+                  تخطي
                 </Button>
               )}
             </div>
@@ -93,7 +93,7 @@ export const StepWizard = ({
                   currentStep === totalSteps && "animate-pulse-glow"
                 )}
               >
-                {currentStep === totalSteps ? "Complete" : "Next"}
+                {currentStep === totalSteps ? "إكمال" : "التالي"}
                 {currentStep !== totalSteps && <ArrowRight className="w-4 h-4 ml-2" />}
               </Button>
             )}

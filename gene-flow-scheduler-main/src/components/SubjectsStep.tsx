@@ -67,8 +67,8 @@ export const SubjectsStep = ({ onNext, onBack, onSkip }: SubjectsStepProps) => {
   const handleDeleteSubject = (id: string) => {
     setSubjects(subjects.filter(s => s.id !== id))
     toast({
-      title: "Subject Deleted",
-      description: "Subject has been removed"
+      title: "تم حذف المادة",
+      description: "تم إزالة المادة بنجاح"
     })
   }
 
@@ -90,7 +90,7 @@ export const SubjectsStep = ({ onNext, onBack, onSkip }: SubjectsStepProps) => {
       onNext={onNext}
       onBack={onBack}
       onSkip={onSkip}
-      canGoBack={false}
+      canGoBack={true}
       showSkip={true}
     >
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
