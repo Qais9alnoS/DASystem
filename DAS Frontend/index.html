@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1200, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>نظام DAS - مدرسة دمشق العربية</title>
+  <meta name="description"
+    content="نظام DAS - نظام إدارة المشامل لمدرسة دمشق العربية. إدارة الطلاب والمعلمين والشؤون المالية." />
+  <meta name="author" content="مدرسة دمشق العربية" />
+  <meta name="keywords" content="إدارة مدرسية, DAS, طلاب, معلمين, مدرسة دمشق العربية, إدارة تعليم" />
+
+  <meta property="og:title" content="نظام DAS - مدرسة دمشق العربية" />
+  <meta property="og:description" content="نظام إدارة المدرسة الشامل لمدرسة دمشق العربية" />
+  <meta property="og:type" content="website" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  
+  <style>
+    /* Custom title bar styles */
+    .custom-titlebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 32px;
+      background: linear-gradient(90deg, #2563eb, #3b82f6);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 9999;
+      -webkit-app-region: drag;
+      app-region: drag;
+    }
+    
+    .titlebar-left {
+      display: flex;
+      align-items: center;
+      padding-left: 12px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .titlebar-right {
+      display: flex;
+      align-items: center;
+      padding-right: 12px;
+      -webkit-app-region: no-drag;
+      app-region: no-drag;
+    }
+    
+    .titlebar-button {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .titlebar-button:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    .titlebar-controls {
+      display: flex;
+    }
+    
+    /* Make sure the app content doesn't overlap with the title bar */
+    #root {
+      padding-top: 32px;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Custom Title Bar -->
+  <div class="custom-titlebar" data-tauri-drag-region>
+    <div class="titlebar-left">
+      <span>نظام DAS - مدرسة دمشق العربية</span>
+    </div>
+    <div class="titlebar-right">
+      <!-- Custom buttons -->
+      <button class="titlebar-button" id="search-button" title="بحث">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </button>
+      <button class="titlebar-button" id="theme-button" title="تغيير النمط">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+      </button>
+      <button class="titlebar-button" id="settings-button" title="الإعدادات">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+      <!-- Native window controls will be inserted by decorum plugin -->
+      <div data-tauri-decorum-tb></div>
+    </div>
+  </div>
+  
+  <div id="root"></div>
+  
+  <script>
+    // Handle custom button functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      // Search button functionality
+      document.getElementById('search-button')?.addEventListener('click', function() {
+        // This would communicate with Rust backend
+        console.log('Search button clicked');
+        // In a real implementation, this would call a Tauri command
+      });
+      
+      // Theme button functionality
+      document.getElementById('theme-button')?.addEventListener('click', function() {
+        // This would communicate with Rust backend
+        console.log('Theme button clicked');
+        // In a real implementation, this would call a Tauri command
+      });
+      
+      // Settings button functionality
+      document.getElementById('settings-button')?.addEventListener('click', function() {
+        // This would communicate with Rust backend
+        console.log('Settings button clicked');
+        // In a real implementation, this would call a Tauri command
+      });
+    });
+  </script>
+</body>
+
+</html>

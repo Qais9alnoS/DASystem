@@ -1,0 +1,7 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="1024" fill="#3B82F6" rx="150"/>
+  <rect x="100" y="100" width="824" height="824" fill="#FFFFFF" rx="100"/>
+  <text x="512" y="400" font-family="Arial, sans-serif" font-size="120" font-weight="bold" text-anchor="middle" fill="#3B82F6">GFS</text>
+  <text x="512" y="550" font-family="Arial, sans-serif" font-size="60" text-anchor="middle" fill="#6B7280">Gene Flow</text>
+  <text x="512" y="650" font-family="Arial, sans-serif" font-size="60" text-anchor="middle" fill="#6B7280">Scheduler</text>
+</svg>
