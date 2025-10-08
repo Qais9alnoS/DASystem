@@ -11,7 +11,8 @@ import {
     Calendar,
     Award,
     Building,
-    TrendingUp
+    TrendingUp,
+    RefreshCw
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -30,6 +31,7 @@ export function DirectorDashboardPage() {
     const { toast } = useToast();
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         fetchDashboardStats();
@@ -40,12 +42,52 @@ export function DirectorDashboardPage() {
             setLoading(true);
             const response = await directorApi.getDashboardStats();
             if (response.success && response.data) {
-                setStats(response.data);
+                // Ensure the data matches our DashboardStats interface
+                const dashboardData: DashboardStats = {
+                    total_students: response.data.total_students ?? 0,
+                    total_teachers: response.data.total_teachers ?? 0,
+                    total_classes: response.data.total_classes ?? 0,
+                    total_subjects: response.data.total_subjects ?? 0,
+                    monthly_revenue: response.data.monthly_revenue ?? 0,
+                    active_activities: response.data.active_activities ?? 0,
+                    recent_activities: Array.isArray(response.data.recent_activities) ? response.data.recent_activities : [],
+                    total_rewards: response.data.total_rewards ?? 0,
+                    total_assistance: response.data.total_assistance ?? 0
+                };
+                setStats(dashboardData);
             } else {
-                throw new Error(response.message || 'Failed to fetch dashboard stats');
+                // Handle case where response is not successful but no error was thrown
+                setStats({
+                    total_students: 0,
+                    total_teachers: 0,
+                    total_classes: 0,
+                    total_subjects: 0,
+                    monthly_revenue: 0,
+                    active_activities: 0,
+                    recent_activities: [],
+                    total_rewards: 0,
+                    total_assistance: 0
+                });
+                toast({
+                    title: "تنبيه",
+                    description: "لا توجد بيانات إحصائية متوفرة حالياً",
+                    variant: "default"
+                });
             }
         } catch (error: any) {
             console.error('Error fetching dashboard stats:', error);
+            // Set default values in case of error
+            setStats({
+                total_students: 0,
+                total_teachers: 0,
+                total_classes: 0,
+                total_subjects: 0,
+                monthly_revenue: 0,
+                active_activities: 0,
+                recent_activities: [],
+                total_rewards: 0,
+                total_assistance: 0
+            });
             toast({
                 title: "خطأ في تحميل إحصائيات لوحة التحكم",
                 description: error.message || "حدث خطأ أثناء تحميل إحصائيات لوحة التحكم",
@@ -56,12 +98,32 @@ export function DirectorDashboardPage() {
         }
     };
 
+    const handleRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await fetchDashboardStats();
+            toast({
+                title: "نجاح",
+                description: "تم تحديث البيانات بنجاح",
+                variant: "default"
+            });
+        } catch (error) {
+            toast({
+                title: "خطأ في التحديث",
+                description: "فشل في تحديث البيانات",
+                variant: "destructive"
+            });
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('ar-IQ', {
-            style: 'currency',
-            currency: 'IQD',
-            minimumFractionDigits: 0
-        }).format(amount);
+        // Format as ليرة without using IQD currency code
+        return `${new Intl.NumberFormat('ar-IQ', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(amount)} ليرة`;
     };
 
     if (loading) {
@@ -79,7 +141,19 @@ export function DirectorDashboardPage() {
                     <h1 className="text-3xl font-bold">لوحة تحكم المدير</h1>
                     <p className="text-muted-foreground mt-2">نظرة شاملة على أداء المدرسة</p>
                 </div>
-                <Button onClick={fetchDashboardStats}>تحديث البيانات</Button>
+                <Button onClick={handleRefresh} disabled={refreshing}>
+                    {refreshing ? (
+                        <>
+                            <RefreshCw className="h-4 w-4 ml-2 animate-spin" />
+                            جاري التحديث...
+                        </>
+                    ) : (
+                        <>
+                            <RefreshCw className="h-4 w-4 ml-2" />
+                            تحديث البيانات
+                        </>
+                    )}
+                </Button>
             </div>
 
             {/* Stats Grid */}
@@ -210,22 +284,24 @@ export function DirectorDashboardPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                        {stats?.recent_activities?.slice(0, 5).map((activity: any, index: number) => (
-                            <div key={index} className="flex items-center justify-between p-4 border rounded-md">
-                                <div className="flex items-center space-x-3 space-x-reverse">
-                                    <div className="p-2 bg-primary/10 rounded-md">
-                                        <Calendar className="h-5 w-5 text-primary" />
+                        {stats?.recent_activities && stats.recent_activities.length > 0 ? (
+                            stats.recent_activities.slice(0, 5).map((activity: any, index: number) => (
+                                <div key={index} className="flex items-center justify-between p-4 border rounded-md">
+                                    <div className="flex items-center space-x-3 space-x-reverse">
+                                        <div className="p-2 bg-primary/10 rounded-md">
+                                            <Calendar className="h-5 w-5 text-primary" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-medium">{activity.title || 'نشاط غير مسمى'}</h4>
+                                            <p className="text-sm text-muted-foreground">{activity.description || 'لا يوجد وصف'}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h4 className="font-medium">{activity.title}</h4>
-                                        <p className="text-sm text-muted-foreground">{activity.description}</p>
+                                    <div className="text-sm text-muted-foreground">
+                                        {activity.timestamp ? new Date(activity.timestamp).toLocaleDateString('ar-IQ') : 'غير محدد'}
                                     </div>
                                 </div>
-                                <div className="text-sm text-muted-foreground">
-                                    {new Date(activity.timestamp).toLocaleDateString('ar-IQ')}
-                                </div>
-                            </div>
-                        )) || (
+                            ))
+                        ) : (
                             <p className="text-center text-muted-foreground py-4">
                                 لا توجد أنشطة حديثة
                             </p>

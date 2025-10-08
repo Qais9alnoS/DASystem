@@ -1,40 +1,89 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProject } from '@/contexts/ProjectContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, GraduationCap, Users, DollarSign, Calendar, Trophy, FileText, BookOpen, BarChart3 } from 'lucide-react';
+import { directorApi } from '@/services/api';
+import { useToast } from '@/hooks/use-toast';
 
 const DashboardPage = () => {
   const navigate = useNavigate();
   const { state, dispatch } = useProject();
-  const { projects, isLoading } = state;
+  const { projects, isLoading: projectsLoading } = state;
+  const { toast } = useToast();
+  
+  const [stats, setStats] = useState({
+    total_students: 0,
+    total_teachers: 0,
+    monthly_revenue: 0,
+    active_activities: 0
+  });
+  
+  const [loading, setLoading] = useState(true);
 
-  const stats = [
+  // Fetch real dashboard stats
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        setLoading(true);
+        const response = await directorApi.getDashboardStats();
+        if (response.success && response.data) {
+          setStats({
+            total_students: response.data.total_students || 0,
+            total_teachers: response.data.total_teachers || 0,
+            monthly_revenue: response.data.monthly_revenue || 0,
+            active_activities: response.data.active_activities || 0
+          });
+        }
+      } catch (error: any) {
+        console.error('Error fetching dashboard stats:', error);
+        toast({
+          title: "خطأ في تحميل الإحصائيات",
+          description: error.message || "حدث خطأ أثناء تحميل إحصائيات لوحة التحكم",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardStats();
+  }, []);
+
+  const formatCurrency = (amount: number) => {
+    // Format as ليرة without using IQD currency code
+    return `${new Intl.NumberFormat('ar-IQ', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount)} ليرة`;
+  };
+
+  const statsData = [
     {
       title: 'إجمالي الطلاب',
-      value: '1,247',
+      value: loading ? 'جاري التحميل...' : stats.total_students.toLocaleString(),
       icon: GraduationCap,
       color: 'text-primary',
       bgColor: 'bg-primary/10 dark:bg-primary/20'
     },
     {
       title: 'إجمالي المعلمين',
-      value: '89',
+      value: loading ? 'جاري التحميل...' : stats.total_teachers.toLocaleString(),
       icon: Users,
       color: 'text-secondary',
       bgColor: 'bg-secondary/10 dark:bg-secondary/20'
     },
     {
       title: 'العائدات الشهرية',
-      value: '245,000 ر.س',
+      value: loading ? 'جاري التحميل...' : formatCurrency(stats.monthly_revenue),
       icon: DollarSign,
       color: 'text-accent',
       bgColor: 'bg-accent/10 dark:bg-accent/20'
     },
     {
       title: 'الأنشطة النشطة',
-      value: '12',
+      value: loading ? 'جاري التحميل...' : stats.active_activities.toLocaleString(),
       icon: Trophy,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100 dark:bg-purple-900'
@@ -68,6 +117,8 @@ const DashboardPage = () => {
     }
   ];
 
+  const isLoading = loading || projectsLoading;
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -99,7 +150,7 @@ const DashboardPage = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
+        {statsData.map((stat, index) => (
           <Card key={index} className="fluent-card border-0">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
