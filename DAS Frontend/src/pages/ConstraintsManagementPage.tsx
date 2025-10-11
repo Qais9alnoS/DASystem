@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Shield, 
   Plus, 
@@ -25,8 +26,11 @@ import {
   Users,
   Ban,
   Target,
-  Repeat
+  Repeat,
+  Loader2
 } from 'lucide-react';
+import { schedulesApi } from '@/services/api';
+import { ScheduleConstraint } from '@/types/school';
 import { ConstraintType } from '@/types/project';
 import { DEFAULT_GRADES, DEFAULT_DIVISIONS } from '@/types/project';
 import { getAllUniqueSubjects } from '@/lib/defaultSubjects';
@@ -58,43 +62,12 @@ export const ConstraintsManagementPage: React.FC = () => {
   const [selectedType, setSelectedType] = useState<string>('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingConstraint, setEditingConstraint] = useState<Constraint | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [academicYearId, setAcademicYearId] = useState<number>(1); // Default to 1, should be dynamic
+  const { toast } = useToast();
   
-  // Mock data - will be replaced with actual data from backend
-  const [constraints, setConstraints] = useState<Constraint[]>([
-    {
-      id: 1,
-      type: ConstraintType.ForbiddenPeriod,
-      description: "منع درس الرياضيات في الحصة الأولى يوم الأحد",
-      isActive: true,
-      priority: 'high',
-      parameters: {
-        subjectName: 'رياضيات',
-        day: 'الأحد',
-        period: 1
-      }
-    },
-    {
-      id: 2,
-      type: ConstraintType.RequiredPeriod,
-      description: "يجب أن تكون حصة التربية الرياضية في الحصة الأخيرة",
-      isActive: true,
-      priority: 'medium',
-      parameters: {
-        subjectName: 'تربية رياضية',
-        period: 6
-      }
-    },
-    {
-      id: 3,
-      type: ConstraintType.Sequential,
-      description: "منع تتالي حصص الفيزياء",
-      isActive: false,
-      priority: 'low',
-      parameters: {
-        subjectName: 'فيزياء'
-      }
-    }
-  ]);
+  // Real data from backend
+  const [constraints, setConstraints] = useState<Constraint[]>([]);
 
   const [newConstraint, setNewConstraint] = useState<Constraint>({
     type: ConstraintType.ForbiddenPeriod,
@@ -177,50 +150,230 @@ export const ConstraintsManagementPage: React.FC = () => {
     }
   };
 
-  const handleAddConstraint = () => {
-    const description = generateDescription(newConstraint);
-    const newId = Math.max(...constraints.map(c => c.id || 0)) + 1;
-    
-    setConstraints([...constraints, { 
-      ...newConstraint, 
-      id: newId,
-      description 
-    }]);
-    
-    setNewConstraint({
-      type: ConstraintType.ForbiddenPeriod,
-      description: '',
-      isActive: true,
-      priority: 'medium',
-      parameters: {}
-    });
-    setIsAddDialogOpen(false);
+  // Fetch constraints from backend when component mounts
+  useEffect(() => {
+    const fetchConstraints = async () => {
+      setLoading(true);
+      try {
+        const response = await schedulesApi.getConstraints(academicYearId);
+        if (response.success && response.data) {
+          // Convert ScheduleConstraint to Constraint format for UI
+          const convertedConstraints: Constraint[] = response.data.map((constraint: ScheduleConstraint) => ({
+            id: constraint.id,
+            type: constraint.constraint_type === 'forbidden' ? ConstraintType.ForbiddenPeriod :
+                  constraint.constraint_type === 'required' ? ConstraintType.RequiredPeriod :
+                  constraint.constraint_type === 'max_consecutive' ? ConstraintType.Sequential :
+                  ConstraintType.ForbiddenPeriod, // default fallback
+            description: constraint.description || '',
+            isActive: constraint.is_active || true,
+            priority: constraint.priority_level === 4 ? 'high' :
+                     constraint.priority_level === 3 ? 'medium' :
+                     constraint.priority_level === 2 ? 'low' : 'medium', // default fallback
+            parameters: {
+              subjectName: '', // Would need to fetch subject name from API
+              day: constraint.day_of_week ? SCHOOL_DAYS[constraint.day_of_week - 1] : undefined,
+              period: constraint.period_number,
+              maxHours: constraint.max_consecutive_periods,
+            }
+          }));
+          setConstraints(convertedConstraints);
+        }
+      } catch (error: any) {
+        console.error('Error fetching constraints:', error);
+        toast({
+          title: "خطأ في تحميل البيانات",
+          description: error.message || "حدث خطأ أثناء تحميل القيود",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchConstraints();
+  }, [academicYearId, toast]);
+
+  const handleAddConstraint = async () => {
+    // Convert Constraint to ScheduleConstraint format for API
+    const scheduleConstraint: any = {
+      academic_year_id: academicYearId,
+      constraint_type: newConstraint.type === ConstraintType.ForbiddenPeriod ? 'forbidden' :
+                      newConstraint.type === ConstraintType.RequiredPeriod ? 'required' :
+                      'max_consecutive',
+      description: generateDescription(newConstraint),
+      is_active: newConstraint.isActive,
+      priority_level: newConstraint.priority === 'high' ? 4 :
+                     newConstraint.priority === 'medium' ? 3 :
+                     newConstraint.priority === 'low' ? 2 : 3, // default fallback
+      day_of_week: newConstraint.parameters.day ? SCHOOL_DAYS.indexOf(newConstraint.parameters.day) + 1 : undefined,
+      period_number: newConstraint.parameters.period,
+      max_consecutive_periods: newConstraint.parameters.maxHours,
+    };
+
+    try {
+      const response = await schedulesApi.createConstraint(scheduleConstraint);
+      if (response.success && response.data) {
+        // Convert back to Constraint format for UI
+        const constraint: Constraint = {
+          id: response.data.id,
+          type: response.data.constraint_type === 'forbidden' ? ConstraintType.ForbiddenPeriod :
+                response.data.constraint_type === 'required' ? ConstraintType.RequiredPeriod :
+                ConstraintType.Sequential,
+          description: response.data.description || '',
+          isActive: response.data.is_active || true,
+          priority: response.data.priority_level === 4 ? 'high' :
+                   response.data.priority_level === 3 ? 'medium' :
+                   response.data.priority_level === 2 ? 'low' : 'medium',
+          parameters: {
+            subjectName: '',
+            day: response.data.day_of_week ? SCHOOL_DAYS[response.data.day_of_week - 1] : undefined,
+            period: response.data.period_number,
+            maxHours: response.data.max_consecutive_periods,
+          }
+        };
+        
+        setConstraints([...constraints, constraint]);
+        setIsAddDialogOpen(false);
+        setNewConstraint({
+          type: ConstraintType.ForbiddenPeriod,
+          description: '',
+          isActive: true,
+          priority: 'medium',
+          parameters: {}
+        });
+        
+        toast({
+          title: "تم إضافة القيد",
+          description: "تم إضافة القيد بنجاح"
+        });
+      } else {
+        throw new Error(response.message || 'فشل في إضافة القيد');
+      }
+    } catch (error: any) {
+      console.error('Error adding constraint:', error);
+      toast({
+        title: "خطأ في إضافة القيد",
+        description: error.message || "حدث خطأ أثناء إضافة القيد",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleEditConstraint = (constraint: Constraint) => {
     setEditingConstraint({ ...constraint });
   };
 
-  const handleUpdateConstraint = () => {
-    if (!editingConstraint) return;
+  const handleUpdateConstraint = async () => {
+    if (!editingConstraint || !editingConstraint.id) return;
     
-    const description = generateDescription(editingConstraint);
-    const updatedConstraint = { ...editingConstraint, description };
-    
-    setConstraints(constraints.map(c => 
-      c.id === editingConstraint.id ? updatedConstraint : c
-    ));
-    setEditingConstraint(null);
+    // Convert Constraint to ScheduleConstraint format for API
+    const scheduleConstraint: any = {
+      constraint_type: editingConstraint.type === ConstraintType.ForbiddenPeriod ? 'forbidden' :
+                      editingConstraint.type === ConstraintType.RequiredPeriod ? 'required' :
+                      'max_consecutive',
+      description: generateDescription(editingConstraint),
+      is_active: editingConstraint.isActive,
+      priority_level: editingConstraint.priority === 'high' ? 4 :
+                     editingConstraint.priority === 'medium' ? 3 :
+                     editingConstraint.priority === 'low' ? 2 : 3,
+      day_of_week: editingConstraint.parameters.day ? SCHOOL_DAYS.indexOf(editingConstraint.parameters.day) + 1 : undefined,
+      period_number: editingConstraint.parameters.period,
+      max_consecutive_periods: editingConstraint.parameters.maxHours,
+    };
+
+    try {
+      const response = await schedulesApi.updateConstraint(editingConstraint.id, scheduleConstraint);
+      if (response.success && response.data) {
+        // Convert back to Constraint format for UI
+        const updatedConstraint: Constraint = {
+          id: response.data.id,
+          type: response.data.constraint_type === 'forbidden' ? ConstraintType.ForbiddenPeriod :
+                response.data.constraint_type === 'required' ? ConstraintType.RequiredPeriod :
+                ConstraintType.Sequential,
+          description: response.data.description || '',
+          isActive: response.data.is_active || true,
+          priority: response.data.priority_level === 4 ? 'high' :
+                   response.data.priority_level === 3 ? 'medium' :
+                   response.data.priority_level === 2 ? 'low' : 'medium',
+          parameters: {
+            subjectName: '',
+            day: response.data.day_of_week ? SCHOOL_DAYS[response.data.day_of_week - 1] : undefined,
+            period: response.data.period_number,
+            maxHours: response.data.max_consecutive_periods,
+          }
+        };
+        
+        setConstraints(constraints.map(c => 
+          c.id === editingConstraint.id ? updatedConstraint : c
+        ));
+        setEditingConstraint(null);
+        
+        toast({
+          title: "تم تحديث القيد",
+          description: "تم تحديث القيد بنجاح"
+        });
+      } else {
+        throw new Error(response.message || 'فشل في تحديث القيد');
+      }
+    } catch (error: any) {
+      console.error('Error updating constraint:', error);
+      toast({
+        title: "خطأ في تحديث القيد",
+        description: error.message || "حدث خطأ أثناء تحديث القيد",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleDeleteConstraint = (constraintId: number) => {
-    setConstraints(constraints.filter(c => c.id !== constraintId));
+  const handleDeleteConstraint = async (constraintId: number) => {
+    try {
+      const response = await schedulesApi.deleteConstraint(constraintId);
+      if (response.success) {
+        setConstraints(constraints.filter(c => c.id !== constraintId));
+        toast({
+          title: "تم حذف القيد",
+          description: "تم حذف القيد بنجاح"
+        });
+      } else {
+        throw new Error(response.message || 'فشل في حذف القيد');
+      }
+    } catch (error: any) {
+      console.error('Error deleting constraint:', error);
+      toast({
+        title: "خطأ في حذف القيد",
+        description: error.message || "حدث خطأ أثناء حذف القيد",
+        variant: "destructive"
+      });
+    }
   };
 
-  const toggleConstraintStatus = (constraintId: number) => {
-    setConstraints(constraints.map(c => 
-      c.id === constraintId ? { ...c, isActive: !c.isActive } : c
-    ));
+  const toggleConstraintStatus = async (constraintId: number) => {
+    const constraint = constraints.find(c => c.id === constraintId);
+    if (!constraint) return;
+    
+    try {
+      const response = await schedulesApi.updateConstraint(constraintId, {
+        is_active: !constraint.isActive
+      });
+      if (response.success && response.data) {
+        setConstraints(constraints.map(c => 
+          c.id === constraintId ? { ...c, isActive: !c.isActive } : c
+        ));
+        toast({
+          title: "تم تحديث حالة القيد",
+          description: `تم ${constraint.isActive ? 'تعطيل' : 'تنشيط'} القيد بنجاح`
+        });
+      } else {
+        throw new Error(response.message || 'فشل في تحديث حالة القيد');
+      }
+    } catch (error: any) {
+      console.error('Error toggling constraint status:', error);
+      toast({
+        title: "خطأ في تحديث حالة القيد",
+        description: error.message || "حدث خطأ أثناء تحديث حالة القيد",
+        variant: "destructive"
+      });
+    }
   };
 
   const getConstraintStats = () => {
@@ -487,6 +640,15 @@ export const ConstraintsManagementPage: React.FC = () => {
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="mr-2">جاري تحميل القيود...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6" dir="rtl">

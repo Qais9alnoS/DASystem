@@ -1,123 +1,78 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-/* Tailwind directives */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Premium $10,000 App Design System */
-
 @layer base {
   :root {
-    /* Premium Color Scheme - Modern Blue, Banana Yellow, Orange */
-    /* Primary - Light Blue (Main Color) */
-    --primary: 200 90% 65%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 200 80% 75%;
+    /* Light mode variables */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
 
-    /* Secondary - Banana Yellow (Accent - Used more than orange) */
-    --secondary: 50 95% 65%;
-    --secondary-foreground: 220 25% 15%;
-    --secondary-glow: 50 85% 75%;
-
-    /* Accent - Orange (Subtle Accent) */
-    --accent: 25 85% 55%;
-    --accent-foreground: 0 0% 100%;
-    --accent-glow: 25 75% 65%;
-
-    /* Premium Background and Text Colors */
-    --background: 0 0% 98%;
-    --foreground: 220 25% 15%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 220 25% 15%;
-    --card-hover: 0 0% 98%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 216 15% 47%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 15%;
+    --popover-foreground: 222 47% 11%;
 
-    --muted: 220 15% 96%;
-    --muted-foreground: 220 15% 45%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    /* Brand palette */
+    --primary: 217 90% 56%;    /* Blue 500 */
+    --primary-foreground: 210 40% 98%;
+
+    --accent: 45 100% 51%;     /* Yellow 500 */
+    --accent-foreground: 222 47% 11%;
+
+    --secondary: 28 92% 54%;   /* Orange 500 */
+    --secondary-foreground: 222 47% 11%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 220 85% 45%;
+    --ring: 217 90% 56%;
 
-    --radius: 1rem;
-
-    /* Enhanced Transparency Variables */
-    --glass-opacity: 0.7;
-    --blur-intensity: 24px;
-    --border-opacity: 0.15;
-
-    /* Shadows - Premium Acrylic Effects */
-    --shadow-elevation-1: 0 2px 12px hsl(220 50% 10% / 0.15);
-    --shadow-elevation-2: 0 4px 20px hsl(220 50% 10% / 0.2);
-    --shadow-elevation-3: 0 8px 40px hsl(220 50% 10% / 0.25);
-    --shadow-card: 0 4px 24px hsl(220 50% 10% / 0.12);
-    --shadow-card-hover: 0 8px 36px hsl(220 50% 10% / 0.18);
-    --shadow-glow: 0 0 60px hsl(var(--primary-glow) / 0.4);
-
-    /* Animation transitions */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    --transition-fast: all 0.15s ease-out;
+    --radius: 0.5rem;
   }
 
   .dark {
-    /* Dark Mode - Gray Theme */
-    --primary: 200 70% 55%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 200 60% 45%;
+    /* Dark mode variables */
+    --background: 220 10% 10%;   /* Dark gray */
+    --foreground: 0 0% 98%;
 
-    --secondary: 50 85% 55%;
-    --secondary-foreground: 0 0% 100%;
-    --secondary-glow: 50 75% 45%;
+    --muted: 220 10% 16%;
+    --muted-foreground: 220 10% 65%;
 
-    --accent: 25 75% 50%;
-    --accent-foreground: 0 0% 100%;
-    --accent-glow: 25 65% 40%;
+    --accent: 45 95% 60%;        /* Warmer yellow for dark */
+    --accent-foreground: 222 47% 11%;
 
-    --background: 0 0% 9%;
-    /* Very dark gray */
-    --foreground: 0 0% 95%;
-    /* Light gray text */
+    --popover: 220 10% 10%;
+    --popover-foreground: 0 0% 98%;
 
-    --card: 0 0% 12%;
-    /* Dark gray cards */
-    --card-foreground: 0 0% 95%;
-    --card-hover: 0 0% 15%;
+    --border: 220 10% 18%;
+    --input: 220 10% 18%;
 
-    --popover: 0 0% 12%;
-    --popover-foreground: 0 0% 95%;
+    --card: 220 10% 10%;
+    --card-foreground: 0 0% 98%;
 
-    --muted: 0 0% 18%;
-    /* Medium gray */
-    --muted-foreground: 0 0% 65%;
-    /* Medium gray text */
+    --primary: 217 92% 60%;      /* Blue 500+ */
+    --primary-foreground: 222 47% 11%;
 
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 0 0% 95%;
+    --secondary: 28 95% 60%;     /* Orange 500+ */
+    --secondary-foreground: 222 47% 11%;
 
-    --border: 0 0% 20%;
-    /* Gray borders */
-    --input: 0 0% 20%;
-    /* Gray inputs */
-    --ring: 200 70% 55%;
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 0 0% 100%;
 
-    /* Enhanced Dark Mode Transparency */
-    --glass-opacity: 0.85;
-    --blur-intensity: 32px;
-    --border-opacity: 0.2;
+    --ring: 217 92% 60%;
+
+    --radius: 0.5rem;
   }
-}
 
-@layer base {
   * {
-    /* Replacing @apply border-border; with actual CSS */
     border-color: hsl(var(--border));
   }
 
@@ -161,158 +116,65 @@
     position: relative;
   }
 
-  /* Title Bar Styles for Windows Integration */
-  .unified-titlebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-    background: transparent;
+  /* Typography */
+  h1 {
+    /* Replacing @apply text-4xl font-extrabold tracking-tight lg:text-5xl; */
+    font-size: 2.25rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
   }
 
-  /* Windows specific title bar styling */
-  .platform-windows .unified-titlebar {
-    border-radius: 8px 8px 0 0;
+  @media (min-width: 1024px) {
+    h1 {
+      font-size: 3rem;
+    }
   }
 
-  /* Draggable regions */
-  [data-tauri-drag-region] {
-    /* These are Tauri-specific properties and are valid */
-    -webkit-app-region: drag;
-    app-region: drag;
-    /* Add visual indicator for debugging */
-    background-color: rgba(255, 0, 0, 0.1);
+  h2 {
+    /* Replacing @apply text-3xl font-semibold tracking-tight; */
+    font-size: 1.875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
   }
 
-  .no-drag {
-    /* These are Tauri-specific properties and are valid */
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
-  }
-  
-  /* Ensure Tauri drag regions work properly */
-  [data-tauri-drag-region] * {
-    -webkit-app-region: drag;
-    app-region: drag;
-  }
-  
-  [data-tauri-drag-region] button,
-  [data-tauri-drag-region] a {
-    -webkit-app-region: no-drag;
-    app-region: no-drag;
-  }
-}
-
-@layer components {
-
-  /* Premium Glass Morphism Effect - Enhanced Transparency & Blur */
-  .glass {
-    background: hsl(var(--background) / var(--glass-opacity));
-    backdrop-filter: blur(var(--blur-intensity)) saturate(180%);
-    border: 1px solid hsl(var(--border) / var(--border-opacity));
-    box-shadow:
-      0 8px 32px hsl(220 50% 10% / 0.1),
-      inset 0 1px 0 hsl(var(--background) / 0.3);
+  h3 {
+    /* Replacing @apply text-2xl font-semibold tracking-tight; */
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
   }
 
-  /* Ultra Premium Acrylic Effects */
-  .acrylic-card {
-    backdrop-filter: blur(20px) saturate(180%);
-    background: linear-gradient(135deg,
-        hsl(var(--card) / 0.7),
-        hsl(var(--muted) / 0.3));
-    border: 1px solid hsl(var(--border) / 0.15);
-    box-shadow:
-      0 12px 40px hsl(220 50% 10% / 0.12),
-      inset 0 1px 0 hsl(var(--card) / 0.4);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  h4 {
+    /* Replacing @apply text-xl font-semibold tracking-tight; */
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
   }
 
-  .acrylic-card:hover {
-    backdrop-filter: blur(24px) saturate(200%);
-    background: linear-gradient(135deg,
-        hsl(var(--card) / 0.75),
-        hsl(var(--muted) / 0.35));
-    box-shadow:
-      0 16px 48px hsl(220 50% 10% / 0.18),
-      inset 0 1px 0 hsl(var(--card) / 0.5);
-    transform: translateY(-2px);
+  p {
+    /* Replacing @apply leading-7; */
+    line-height: 1.75rem;
   }
 
-  /* Enhanced Background Blur Effect */
-  .glass-effect {
-    backdrop-filter: blur(40px) saturate(200%);
-    background: hsl(var(--background) / 0.6);
-    border: 1px solid hsl(var(--border) / 0.2);
-    box-shadow: inset 0 1px 0 hsl(var(--background) / 0.4);
+  /* Focus styles */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 
-  /* Card animations */
-  .card-hover {
-    /* Replacing @apply transition-all duration-300 hover:shadow-card-hover hover:-translate-y-1 hover:scale-[1.02]; */
-    transition: all 0.3s ease-out;
-  }
-  
-  .card-hover:hover {
-    box-shadow: var(--shadow-card-hover);
-    transform: translateY(-1px) scale(1.02);
+  /* Disabled states */
+  :disabled {
+    pointer-events: none;
+    opacity: 0.5;
   }
 
-  /* Gradient Background Classes */
-  .bg-gradient-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
-  }
-  
-  .bg-gradient-secondary {
-    background: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--accent-foreground)));
-  }
-  
-  .bg-gradient-accent {
-    background: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--primary-foreground)));
-  }
-  
-  .bg-gradient-hero {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
-  }
-  
-  /* Premium Button Effects */
-  .btn-premium {
-    /* Replacing @apply relative overflow-hidden transition-all duration-500; */
-    position: relative;
-    overflow: hidden;
-    transition: all 0.5s ease-out;
-  }
-
-  .btn-premium::before {
-    content: '';
-    /* Replacing @apply absolute inset-0 bg-white/20 transform scale-0 rounded-full transition-transform duration-500; */
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: hsl(0 0% 100% / 0.2);
-    transform: scale(0);
-    border-radius: 9999px;
-    transition: transform 0.5s ease-out;
-  }
-
-  .btn-premium:active::before {
-    /* Replacing @apply scale-100; */
-    transform: scale(1);
-  }
-
-  /* Gradient text with premium colors */
-  .gradient-text-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .gradient-text-secondary {
-    background: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--secondary) / 0.8));
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary)));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -344,172 +206,96 @@
     box-shadow: 0 0 20px hsl(var(--secondary) / 0.3), 0 0 40px hsl(var(--secondary) / 0.2);
   }
 
-  /* VS Code-style Unified Title Bar - Transparent Overlay */
-  .unified-titlebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 9999;
-    /* Transparent background - let Windows handle the title bar */
-    background: transparent;
-  }
-
-  /* App content that extends into title bar area */
-  .titlebar-content {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 9998;
-    height: env(titlebar-area-height, 32px);
-    backdrop-filter: blur(20px) saturate(180%);
-    background: hsl(var(--background) / 0.85);
-    border-bottom: 1px solid hsl(var(--border) / 0.5);
-  }
-
-  /* Ensure content doesn't overlap with window controls */
-  .titlebar-content {
-    padding-left: env(titlebar-area-x, 0px);
-    width: env(titlebar-area-width, 100%);
-  }
-
-  /* Fallback for browsers that don't support env() */
-  @supports not (padding-top: env(titlebar-area-height)) {
-    .titlebar-content {
-      height: 32px;
-    }
-
-    .app-container {
-      padding-top: 32px;
-    }
-  }
-
-  /* Windows 11 rounded corners preservation */
-  .app-container {
-    border-radius: env(titlebar-area-inset-top, 0px) env(titlebar-area-inset-right, 0px) 0px 0px;
-  }
-
-  /* Draggable region styles */
-  .titlebar-drag {
-    /* These are Tauri-specific properties and are valid */
+  /* Custom Title Bar Styles */
+  .custom-titlebar {
     -webkit-app-region: drag;
+    app-region: drag;
   }
-
-  .titlebar-no-drag {
-    /* These are Tauri-specific properties and are valid */
+  
+  .titlebar-center {
     -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+  
+  .titlebar-right {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+  
+  .titlebar-button,
+  .window-control {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
   }
 
-  /* Safe area for Windows title bar overlay */
-  .titlebar-safe-area {
-    padding-top: env(titlebar-area-height, 32px);
+  /* Fluent UI Surface */
+  .fluent-surface {
+    background: hsl(var(--background));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+  }
+  
+  .fluent-surface:focus-within {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
   }
 
-  /* Platform specific adjustments */
-  .titlebar-windows {
-    padding-right: 138px;
-    /* Space for Windows controls */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
-  .titlebar-macos {
-    padding-left: 78px;
-    /* Space for macOS controls */
-  }
-}
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(40px);
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
 
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes bounceIn {
-  0% {
-    opacity: 0;
-    transform: scale(0.3);
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
-  50% {
-    opacity: 1;
-    transform: scale(1.05);
-  }
+  @keyframes bounceIn {
+    0% {
+      opacity: 0;
+      transform: scale(0.3);
+    }
 
-  70% {
-    transform: scale(0.9);
-  }
+    50% {
+      opacity: 1;
+      transform: scale(1.05);
+    }
 
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
+    70% {
+      transform: scale(0.9);
+    }
 
-@keyframes logoZoom {
-  0% {
-    opacity: 0;
-    transform: scale(0.8);
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1);
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 }
-
-@keyframes textReveal {
-  0% {
-    opacity: 0;
-    letter-spacing: 0.5em;
-  }
-
-  100% {
-    opacity: 1;
-    letter-spacing: 0.1em;
-  }
-}
-
-/* Premium Loading Effects */
-@keyframes pulse-glow {
-
-  0%,
-  100% {
-    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
-  }
-
-  50% {
-    box-shadow: 0 0 40px hsl(var(--primary) / 0.5);
-  }
-}
-
-/* Removed mobile-specific styles - Desktop only application */

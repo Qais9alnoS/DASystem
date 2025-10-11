@@ -8,7 +8,7 @@ import {
   FinanceCategory, FinanceTransaction, Budget,
   Activity, ActivityParticipant, StudentActivityParticipation,
   ActivityRegistration, ActivitySchedule, ActivityAttendance,
-  Schedule, ScheduleConstraint,
+  Schedule, ScheduleConstraint, ConstraintTemplate,
   DirectorNote, Reward, AssistanceRecord,
   FileItem, StorageStats
 } from '../types/school';
@@ -396,6 +396,19 @@ export const teachersApi = {
   recordAttendance: async (teacher_id: number, attendance: Omit<TeacherAttendance, 'id' | 'teacher_id' | 'created_at'>) => {
     return apiClient.post<TeacherAttendance>(`/teachers/${teacher_id}/attendance`, attendance);
   },
+
+  getFinanceRecords: async (teacher_id: number, params?: {
+    academic_year_id?: number;
+    month?: number;
+    year?: number;
+  }) => {
+    const queryString = params ? '?' + new URLSearchParams(
+      Object.entries(params)
+        .filter(([_, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => [k, String(v)])
+    ).toString() : '';
+    return apiClient.get<any[]>(`/teachers/${teacher_id}/finance${queryString}`);
+  },
 };
 
 // Academic Years API
@@ -685,6 +698,36 @@ export const schedulesApi = {
 
   deleteConstraint: async (id: number) => {
     return apiClient.delete<void>(`/schedules/constraints/${id}`);
+  },
+
+  // Constraint Template Management
+  getConstraintTemplates: async (params?: {
+    is_system_template?: boolean;
+    skip?: number;
+    limit?: number;
+  }) => {
+    const queryString = params ? '?' + new URLSearchParams(
+      Object.entries(params)
+        .filter(([_, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => [k, String(v)])
+    ).toString() : '';
+    return apiClient.get<ConstraintTemplate[]>(`/schedules/constraint-templates/${queryString}`);
+  },
+
+  getConstraintTemplate: async (id: number) => {
+    return apiClient.get<ConstraintTemplate>(`/schedules/constraint-templates/${id}`);
+  },
+
+  createConstraintTemplate: async (template: Omit<ConstraintTemplate, 'id' | 'created_at' | 'updated_at'>) => {
+    return apiClient.post<ConstraintTemplate>('/schedules/constraint-templates/', template);
+  },
+
+  updateConstraintTemplate: async (id: number, template: Partial<ConstraintTemplate>) => {
+    return apiClient.put<ConstraintTemplate>(`/schedules/constraint-templates/${id}`, template);
+  },
+
+  deleteConstraintTemplate: async (id: number) => {
+    return apiClient.delete<void>(`/schedules/constraint-templates/${id}`);
   },
 };
 

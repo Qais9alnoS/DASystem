@@ -262,6 +262,10 @@ export const subjectsApi = {
   update: async (id: number, subject: Partial<Subject>) => {
     return apiClient.put<Subject>(`/academic/subjects/${id}`, subject);
   },
+
+  delete: async (id: number) => {
+    return apiClient.delete<{ message: string }>(`/academic/subjects/${id}`);
+  },
 };
 
 // Students API
@@ -386,6 +390,19 @@ export const teachersApi = {
 
   recordAttendance: async (teacher_id: number, attendance: Omit<TeacherAttendance, 'id' | 'teacher_id' | 'created_at'>) => {
     return apiClient.post<TeacherAttendance>(`/teachers/${teacher_id}/attendance`, attendance);
+  },
+
+  getFinanceRecords: async (teacher_id: number, params?: {
+    academic_year_id?: number;
+    month?: number;
+    year?: number;
+  }) => {
+    const queryString = params ? '?' + new URLSearchParams(
+      Object.entries(params)
+        .filter(([_, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => [k, String(v)])
+    ).toString() : '';
+    return apiClient.get<any[]>(`/teachers/${teacher_id}/finance${queryString}`);
   },
 };
 

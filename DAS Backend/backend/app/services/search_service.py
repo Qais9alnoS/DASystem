@@ -1,13 +1,13 @@
 """
 Universal Search Service with Arabic text support and fuzzy matching
 """
-
 import time
 import re
 import difflib
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Generator, Union
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, String
+from sqlalchemy.orm import Query
 from datetime import datetime
 
 from ..models.students import Student
@@ -71,6 +71,29 @@ class ArabicTextProcessor:
 class FuzzyMatcher:
     """Handles fuzzy string matching"""
     
+    @staticmethod
+    def is_arabic_text(text: str) -> bool:
+        """Check if text contains Arabic characters"""
+        return bool(re.search(r'[\u0600-\u06FF]', text))
+    
+    @staticmethod
+    def normalize_arabic_text(text: str) -> str:
+        """Normalize Arabic text by removing diacritics and standardizing characters"""
+        if not text:
+            return ""
+        # Remove diacritics
+        ARABIC_DIACRITICS = r'[\u064B-\u0652\u0670\u0640]'
+        ARABIC_NORMALIZATIONS = {
+            'أ': 'ا', 'إ': 'ا', 'آ': 'ا',
+            'ى': 'ي', 'ؤ': 'و', 'ئ': 'ي'
+        }
+        text = re.sub(ARABIC_DIACRITICS, '', text)
+        # Standardize characters
+        for original, normalized in ARABIC_NORMALIZATIONS.items():
+            text = text.replace(original, normalized)
+        # Remove extra whitespace
+        return re.sub(r'\s+', ' ', text.strip())
+    
     @classmethod
     def calculate_similarity(cls, text1: str, text2: str) -> float:
         """Calculate similarity ratio between two texts"""
@@ -113,8 +136,8 @@ class FuzzyMatcher:
         norm_text2 = cls.normalize_arabic_text(text2)
         
         # Apply equivalence mapping
-        equiv_text1 = ''.join(arabic_equivalence.get(c, c) for c in norm_text1)
-        equiv_text2 = ''.join(arabic_equivalence.get(c, c) for c in norm_text2)
+        equiv_text1 = ''.join(arabic_equivalence.get(c, c) or c for c in norm_text1)
+        equiv_text2 = ''.join(arabic_equivalence.get(c, c) or c for c in norm_text2)
         
         # Calculate similarity using multiple approaches
         # 1. Exact match after normalization
@@ -233,7 +256,7 @@ class UniversalSearchService:
     MIN_QUERY_LENGTH = 3
     MAX_RESULTS = 1000
     
-    def __init__(self, db: Session = None):
+    def __init__(self, db: Session):
         self.db = db
         self.arabic_processor = ArabicTextProcessor()
         self.fuzzy_matcher = FuzzyMatcher()
@@ -394,20 +417,17 @@ class UniversalSearchService:
     
     def _search_students(self, request: UniversalSearchRequest, processed_query: str) -> Tuple[List[SearchResultItem], int]:
         """Search students in database"""
-        if not self.db:
-            return [], 0
-        
         query = self.db.query(Student)
         
         # Apply filters
         if request.academic_year_id:
-            query = query.filter(Student.academic_year_id == request.academic_year_id)
+            query = query.filter(Student.academic_year_id == request.academic_year_id)  
         if request.session_type:
-            query = query.filter(Student.session_type == request.session_type)
+            query = query.filter(Student.session_type == request.session_type)  
         if not request.include_inactive:
-            query = query.filter(Student.is_active == True)
+            query = query.filter(Student.is_active == True)  
         
-        students = query.all()
+        students = query.all()  
         results = []
         scanned = len(students)
         
@@ -441,18 +461,15 @@ class UniversalSearchService:
     
     def _search_teachers(self, request: UniversalSearchRequest, processed_query: str) -> Tuple[List[SearchResultItem], int]:
         """Search teachers in database"""
-        if not self.db:
-            return [], 0
-        
         query = self.db.query(Teacher)
         
         # Apply filters
         if request.academic_year_id:
-            query = query.filter(Teacher.academic_year_id == request.academic_year_id)
+            query = query.filter(Teacher.academic_year_id == request.academic_year_id)  
         if not request.include_inactive:
-            query = query.filter(Teacher.is_active == True)
+            query = query.filter(Teacher.is_active == True)  
         
-        teachers = query.all()
+        teachers = query.all()  
         results = []
         scanned = len(teachers)
         
@@ -481,30 +498,28 @@ class UniversalSearchService:
     
     def _search_classes(self, request: UniversalSearchRequest, processed_query: str) -> Tuple[List[SearchResultItem], int]:
         """Search classes in database"""
-        if not self.db:
-            return [], 0
-        
         query = self.db.query(Class)
         
         # Apply filters
         if request.academic_year_id:
-            query = query.filter(Class.academic_year_id == request.academic_year_id)
+            query = query.filter(Class.academic_year_id == request.academic_year_id)  
         if request.session_type:
-            query = query.filter(or_(Class.session_type == request.session_type, Class.session_type == "both"))
+            query = query.filter(or_(Class.session_type == request.session_type, Class.session_type == "both"))  
         
-        classes = query.all()
+        classes = query.all()  
         results = []
         scanned = len(classes)
         
         for class_obj in classes:
-            searchable_text = f"{getattr(class_obj, 'class_name', '')} {getattr(class_obj, 'section', '') or ''} {getattr(class_obj, 'grade_level', '') or ''}"
+            class_name = getattr(class_obj, 'class_name', 'N/A')  
+            searchable_text = f"{class_name} {getattr(class_obj, 'section', '') or ''} {getattr(class_obj, 'grade_level', '') or ''}"
             relevance_score = self._calculate_relevance(processed_query, searchable_text, request.mode)
             
             if relevance_score >= request.min_relevance_score:
                 results.append(SearchResultItem(
                     id=class_obj.id,
                     type="class",
-                    title=getattr(class_obj, 'class_name', 'N/A'),
+                    title=class_name,
                     subtitle=f"Section: {getattr(class_obj, 'section', 'N/A')} - Grade: {getattr(class_obj, 'grade_level', 'N/A')}",
                     description=f"Session: {getattr(class_obj, 'session_type', 'N/A')}",
                     relevance_score=relevance_score,
@@ -521,31 +536,28 @@ class UniversalSearchService:
     
     def _search_subjects(self, request: UniversalSearchRequest, processed_query: str) -> Tuple[List[SearchResultItem], int]:
         """Search subjects in database"""
-        if not self.db:
-            return [], 0
-        
         query = self.db.query(Subject)
         
-        if not request.include_inactive:
-            query = query.filter(Subject.is_active == True)
+        # Subject model doesn't have is_active attribute, so we skip this filter
         
-        subjects = query.all()
+        subjects = query.all()  
         results = []
         scanned = len(subjects)
         
         for subject in subjects:
-            searchable_text = f"{getattr(subject, 'subject_name', '')} {getattr(subject, 'description', '') or ''}"
+            subject_name = getattr(subject, 'subject_name', 'N/A')  
+            searchable_text = f"{subject_name} {getattr(subject, 'description', '') or ''}"
             relevance_score = self._calculate_relevance(processed_query, searchable_text, request.mode)
             
             if relevance_score >= request.min_relevance_score:
                 results.append(SearchResultItem(
                     id=subject.id,
                     type="subject",
-                    title=getattr(subject, 'subject_name', 'N/A'),
+                    title=subject_name,
                     subtitle="Subject",
                     description=getattr(subject, 'description', 'No description'),
                     relevance_score=relevance_score,
-                    is_active=getattr(subject, 'is_active', True),
+                    # Subject model doesn't have is_active attribute
                     created_at=getattr(subject, 'created_at', None),
                     updated_at=getattr(subject, 'updated_at', None),
                     url=f"/subjects/{subject.id}",
@@ -557,27 +569,25 @@ class UniversalSearchService:
     
     def _search_activities(self, request: UniversalSearchRequest, processed_query: str) -> Tuple[List[SearchResultItem], int]:
         """Search activities in database"""
-        if not self.db:
-            return [], 0
-        
         query = self.db.query(Activity)
         
         if request.academic_year_id:
-            query = query.filter(Activity.academic_year_id == request.academic_year_id)
+            query = query.filter(Activity.academic_year_id == request.academic_year_id)  
         
-        activities = query.all()
+        activities = query.all()  
         results = []
         scanned = len(activities)
         
         for activity in activities:
-            searchable_text = f"{getattr(activity, 'activity_name', '')} {getattr(activity, 'description', '') or ''}"
+            activity_name = getattr(activity, 'activity_name', 'N/A')  
+            searchable_text = f"{activity_name} {getattr(activity, 'description', '') or ''}"
             relevance_score = self._calculate_relevance(processed_query, searchable_text, request.mode)
             
             if relevance_score >= request.min_relevance_score:
                 results.append(SearchResultItem(
                     id=activity.id,
                     type="activity",
-                    title=getattr(activity, 'activity_name', 'N/A'),
+                    title=activity_name,
                     subtitle=f"Activity - {getattr(activity, 'activity_date', 'N/A')}",
                     description=getattr(activity, 'description', 'No description'),
                     relevance_score=relevance_score,
@@ -594,27 +604,25 @@ class UniversalSearchService:
     
     def _search_finance(self, request: UniversalSearchRequest, processed_query: str) -> Tuple[List[SearchResultItem], int]:
         """Search finance transactions in database"""
-        if not self.db:
-            return [], 0
-        
         query = self.db.query(FinanceTransaction)
         
         if request.academic_year_id:
-            query = query.filter(FinanceTransaction.academic_year_id == request.academic_year_id)
+            query = query.filter(FinanceTransaction.academic_year_id == request.academic_year_id)  
         
-        transactions = query.all()
+        transactions = query.all()  
         results = []
         scanned = len(transactions)
         
         for transaction in transactions:
-            searchable_text = f"{getattr(transaction, 'description', '') or ''} {getattr(transaction, 'receipt_number', '') or ''} {getattr(transaction, 'transaction_type', '') or ''}"
+            receipt_number = getattr(transaction, 'receipt_number', transaction.id)  
+            searchable_text = f"{getattr(transaction, 'description', '') or ''} {receipt_number or ''} {getattr(transaction, 'transaction_type', '') or ''}"
             relevance_score = self._calculate_relevance(processed_query, searchable_text, request.mode)
             
             if relevance_score >= request.min_relevance_score:
                 results.append(SearchResultItem(
                     id=transaction.id,
                     type="finance",
-                    title=f"Transaction #{getattr(transaction, 'receipt_number', transaction.id)}",
+                    title=f"Transaction #{receipt_number}",
                     subtitle=f"{getattr(transaction, 'transaction_type', 'N/A').title()} - ${float(getattr(transaction, 'amount', 0))}",
                     description=getattr(transaction, 'description', 'No description'),
                     relevance_score=relevance_score,
@@ -779,9 +787,6 @@ class UniversalSearchService:
     # Public API methods for external use
     async def search_students(self, query: str):
         """Search students"""
-        if not self.db:
-            return []
-        
         # Real implementation
         students = self.db.query(Student).filter(
             or_(
@@ -789,7 +794,7 @@ class UniversalSearchService:
                 Student.father_name.ilike(f'%{query}%'),
                 Student.mother_name.ilike(f'%{query}%')
             )
-        ).all()
+        ).all()  
         
         results = []
         for student in students:
@@ -804,13 +809,10 @@ class UniversalSearchService:
     
     async def search_teachers(self, query: str):
         """Search teachers"""
-        if not self.db:
-            return []
-        
         # Real implementation
         teachers = self.db.query(Teacher).filter(
             Teacher.full_name.ilike(f'%{query}%')
-        ).all()
+        ).all()  
         
         results = []
         for teacher in teachers:
@@ -988,7 +990,7 @@ class UniversalSearchService:
         
         return filtered_results
     
-    def _parse_date_filter(self, date_str: str) -> Optional[datetime]:
+    def _parse_date_filter(self, date_str: Optional[str]) -> Optional[datetime]:
         """Parse date filter string into datetime object"""
         if not date_str:
             return None
@@ -1055,17 +1057,6 @@ class UniversalSearchService:
     
     def check_search_indices(self):
         """Check search indices status and performance"""
-        if not self.db:
-            return {
-                "students_index": False,
-                "teachers_index": False,
-                "classes_index": False,
-                "subjects_index": False,
-                "activities_index": False,
-                "finance_index": False,
-                "status": "Database connection not available"
-            }
-        
         try:
             # Check if database indices exist for search performance
             index_status = {
@@ -1109,7 +1100,7 @@ class UniversalSearchService:
             # 3. Verify index health and statistics
             
             # For SQLite, we can check the sqlite_master table
-            if hasattr(self.db.bind, 'driver') and 'sqlite' in str(self.db.bind.driver).lower():
+            if self.db.bind is not None and hasattr(self.db.bind, 'driver') and self.db.bind.driver is not None and 'sqlite' in str(self.db.bind.driver).lower():
                 # SQLite specific index check
                 result = self.db.execute(f"""
                     SELECT count(*) FROM sqlite_master 
@@ -1144,16 +1135,17 @@ class UniversalSearchService:
             memory_sufficient = available_memory > (estimated_memory_needed * 2)
             
             # Check CPU capabilities (simplified)
-            cpu_count = psutil.cpu_count()
-            cpu_sufficient = cpu_count >= 2  # Need at least 2 cores
+            cpu_count = psutil.cpu_count() or 0
+            cpu_sufficient = (cpu_count or 0) >= 2  # Need at least 2 cores
             
             # Check disk space (need at least 10MB free space for temporary operations)
             disk_usage = psutil.disk_usage('/')
             disk_sufficient = disk_usage.free > (10 * 1024 * 1024)  # 10MB
             
             # Consider system load
-            system_load = psutil.getloadavg()[0]  # 1-minute load average
-            load_sufficient = system_load < (cpu_count * 0.7)  # Not overloaded
+            load_avg = psutil.getloadavg()
+            system_load = load_avg[0] if load_avg else 0.0  # 1-minute load average
+            load_sufficient = (system_load or 0.0) < ((cpu_count or 0) * 0.7)  # Not overloaded
             
             # Overall system capability
             system_can_handle = memory_sufficient and cpu_sufficient and disk_sufficient and load_sufficient
@@ -1187,9 +1179,6 @@ class UniversalSearchService:
     
     def _get_dataset_size(self) -> int:
         """Get actual dataset size from database"""
-        if not self.db:
-            return 0
-        
         try:
             # Estimate total records across all relevant tables
             total_records = 0
@@ -1202,7 +1191,7 @@ class UniversalSearchService:
             
             for table in tables_to_count:
                 try:
-                    result = self.db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
+                    result = self.db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()  
                     total_records += result[0] if result else 0
                 except:
                     # Table might not exist or be accessible
@@ -1313,8 +1302,6 @@ class UniversalSearchService:
         """Perform actual search"""
         # This is a simplified implementation
         # In a real system, this would perform the actual database search
-        if not self.db:
-            return {"results": [], "cached": False}
         
         # Perform search across multiple entities
         results = []
@@ -1326,7 +1313,7 @@ class UniversalSearchService:
                 Student.father_name.ilike(f'%{query}%'),
                 Student.mother_name.ilike(f'%{query}%')
             )
-        ).all()
+        ).all()  
         
         for student in students:
             results.append({
@@ -1339,7 +1326,7 @@ class UniversalSearchService:
         # Search teachers
         teachers = self.db.query(Teacher).filter(
             Teacher.full_name.ilike(f'%{query}%')
-        ).all()
+        ).all()  
         
         for teacher in teachers:
             results.append({
@@ -1351,14 +1338,19 @@ class UniversalSearchService:
         
         # Search classes
         classes = self.db.query(Class).filter(
-            Class.class_name.ilike(f'%{query}%')
-        ).all()
+            or_(
+                Class.grade_level.ilike(f'%{query}%'),
+                Class.grade_number.cast(String).ilike(f'%{query}%')
+            )
+        ).all()  
         
         for class_obj in classes:
+            # Create class name from grade_level and grade_number
+            class_name = f"{getattr(class_obj, 'grade_level', 'N/A')} {getattr(class_obj, 'grade_number', 'N/A')}"
             results.append({
                 "id": class_obj.id,
                 "type": "class",
-                "title": getattr(class_obj, 'class_name', 'N/A'),
+                "title": class_name,
                 "description": f"{getattr(class_obj, 'grade_level', 'N/A')} grade"
             })
         
@@ -1443,9 +1435,6 @@ class UniversalSearchService:
     def _execute_long_search(self, query: str):
         """Execute a long-running search"""
         # Execute a more comprehensive search that might take longer
-        if not self.db:
-            return []
-        
         results = []
         
         # Search students with more comprehensive criteria
@@ -1456,7 +1445,7 @@ class UniversalSearchService:
                 Student.mother_name.ilike(f'%{query}%'),
                 Student.detailed_address.ilike(f'%{query}%')
             )
-        ).all()
+        ).all()  
         
         for student in students:
             results.append({
@@ -1473,7 +1462,7 @@ class UniversalSearchService:
                 Teacher.qualifications.ilike(f'%{query}%'),
                 Teacher.detailed_address.ilike(f'%{query}%')
             )
-        ).all()
+        ).all()  
         
         for teacher in teachers:
             results.append({
@@ -1498,16 +1487,14 @@ class UniversalSearchService:
         self.search_history.append(search_record)
         return True
     
-    def _get_dataset_size(self):
+    def _get_dataset_size_method(self):
         """Get the size of the dataset"""
-        if not self.db:
-            return 1000
         # Count records in main tables
         try:
-            student_count = self.db.query(func.count(Student.id)).scalar() or 0
-            teacher_count = self.db.query(func.count(Teacher.id)).scalar() or 0
-            class_count = self.db.query(func.count(Class.id)).scalar() or 0
-            subject_count = self.db.query(func.count(Subject.id)).scalar() or 0
+            student_count = self.db.query(func.count(Student.id)).scalar() or 0  
+            teacher_count = self.db.query(func.count(Teacher.id)).scalar() or 0  
+            class_count = self.db.query(func.count(Class.id)).scalar() or 0  
+            subject_count = self.db.query(func.count(Subject.id)).scalar() or 0  
             return student_count + teacher_count + class_count + subject_count
         except:
             return 1000
@@ -1616,3 +1603,53 @@ class SearchResultRanker:
             return combined_score
         
         return sorted(results, key=sort_key, reverse=True)
+
+# Add helper functions to transform search results for frontend compatibility
+def transform_search_results_for_frontend(results: Dict) -> Dict:
+    """Transform search results to match frontend UniversalSearchPage expectations"""
+    # The frontend expects a specific structure with students and teachers grouped
+    transformed = {
+        "students": {
+            "current": [],
+            "former": []
+        },
+        "teachers": {
+            "current": [],
+            "former": []
+        },
+        "total_results": results.get("total_results", 0)
+    }
+    
+    # Process results and group by type
+    for result in results.get("results", []):
+        result_type = result.get("type", "")
+        result_data = {
+            "id": result.get("id"),
+            "name": result.get("title", ""),
+            "type": result_type,
+            "status": "current"  # Default to current for all results
+        }
+        
+        # Add type-specific fields
+        if result_type == "student":
+            # Extract student-specific information from subtitle and description
+            subtitle = result.get("subtitle", "")
+            if "Grade" in subtitle:
+                parts = subtitle.split(" - ")
+                if len(parts) >= 2:
+                    result_data["grade"] = parts[0].replace("Grade ", "")
+                    result_data["session"] = parts[1]
+            
+            # Add to current students
+            transformed["students"]["current"].append(result_data)
+        elif result_type == "teacher":
+            # Extract teacher-specific information
+            description = result.get("description", "")
+            if "Phone:" in description:
+                phone_part = description.split("Phone: ")[1] if "Phone: " in description else ""
+                result_data["phone"] = phone_part
+            
+            # Add to current teachers
+            transformed["teachers"]["current"].append(result_data)
+    
+    return transformed

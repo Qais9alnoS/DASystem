@@ -60,33 +60,36 @@ export const ClassesManagementPage: React.FC = () => {
         
         if (response.success && response.data) {
           // Transform the API data to match our ClassInfo interface
-          const transformedClasses = response.data.map((cls: Class) => {
+          const transformedClasses = await Promise.all(response.data.map(async (cls: Class) => {
             // Fetch subjects for this class
-            const fetchSubjects = async () => {
-              const subjectResponse = await subjectsApi.getAll(cls.id);
-              return subjectResponse.success ? subjectResponse.data?.length || 0 : 0;
-            };
+            const subjectResponse = await subjectsApi.getAll(cls.id);
+            const totalSubjects = subjectResponse.success ? subjectResponse.data?.length || 0 : 0;
+            
+            // For now, we'll use mock data for teachers and status
+            // In a real implementation, this would come from the backend
+            const assignedTeachers = Math.floor(Math.random() * 5); // Mock data
+            const status = totalSubjects > 0 ? 'incomplete' : 'missing'; // Mock logic
             
             return {
               gradeId: cls.id || 0,
               gradeName: `${cls.grade_level} ${cls.grade_number}`,
               gradeOrder: cls.grade_number,
               level: cls.grade_level,
-              totalSubjects: 0, // Will be updated with actual data
-              assignedTeachers: 0, // Will be updated with actual data
-              status: 'incomplete', // Will be updated with actual data
+              totalSubjects: totalSubjects,
+              assignedTeachers: assignedTeachers,
+              status: status as 'complete' | 'incomplete' | 'missing',
               divisions: [
                 {
                   id: 1,
-                  name: cls.section || 'غير محدد',
+                  name: `شعبة ${cls.section_count || 1}`,
                   type: 'شعبة واحدة',
-                  studentCount: 0, // Will be updated with actual data
-                  hasTeachers: false,
-                  hasSubjects: false
+                  studentCount: cls.max_students_per_section || 0,
+                  hasTeachers: assignedTeachers > 0,
+                  hasSubjects: totalSubjects > 0
                 }
               ]
-            };
-          });
+            } as ClassInfo;
+          }));
           
           setClasses(transformedClasses);
         }

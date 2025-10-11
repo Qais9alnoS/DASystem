@@ -4,7 +4,7 @@ from typing import Optional
 from ..database import get_db
 from ..models.users import User
 from ..core.dependencies import get_current_user, get_director_user
-from ..services.search_service import UniversalSearchService
+from ..services.search_service import UniversalSearchService, transform_search_results_for_frontend
 from ..schemas.search import (
     UniversalSearchRequest, 
     UniversalSearchResponse,
@@ -18,7 +18,7 @@ from ..schemas.search import (
 
 router = APIRouter(prefix="/search", tags=["search"])
 
-@router.get("/universal", response_model=UniversalSearchResponse)
+@router.get("/universal")
 async def universal_search(
     query: str = Query(..., description="Search query"),
     scope: SearchScope = Query(SearchScope.ALL, description="Search scope"),
@@ -59,7 +59,10 @@ async def universal_search(
         search_service = UniversalSearchService(db)
         results = await search_service.universal_search(search_request)
         
-        return results
+        # Transform results to match frontend expectations
+        transformed_results = transform_search_results_for_frontend(results.dict())
+        
+        return transformed_results
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
@@ -90,7 +93,7 @@ async def quick_search(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Quick search failed: {str(e)}")
 
-@router.get("/students", response_model=UniversalSearchResponse)
+@router.get("/students")
 async def search_students(
     query: str = Query(..., description="Student search query"),
     academic_year_id: Optional[int] = Query(None, description="Academic year filter"),
@@ -111,9 +114,13 @@ async def search_students(
     
     search_service = UniversalSearchService(db)
     results = await search_service.universal_search(search_request)
-    return results
+    
+    # Transform results to match frontend expectations
+    transformed_results = transform_search_results_for_frontend(results.dict())
+    
+    return transformed_results
 
-@router.get("/teachers", response_model=UniversalSearchResponse)
+@router.get("/teachers")
 async def search_teachers(
     query: str = Query(..., description="Teacher search query"),
     subject_id: Optional[int] = Query(None, description="Subject filter"),
@@ -132,9 +139,13 @@ async def search_teachers(
     
     search_service = UniversalSearchService(db)
     results = await search_service.universal_search(search_request)
-    return results
+    
+    # Transform results to match frontend expectations
+    transformed_results = transform_search_results_for_frontend(results.dict())
+    
+    return transformed_results
 
-@router.get("/classes", response_model=UniversalSearchResponse)
+@router.get("/classes")
 async def search_classes(
     query: str = Query(..., description="Class search query"),
     academic_year_id: Optional[int] = Query(None, description="Academic year filter"),
@@ -155,9 +166,13 @@ async def search_classes(
     
     search_service = UniversalSearchService(db)
     results = await search_service.universal_search(search_request)
-    return results
+    
+    # Transform results to match frontend expectations
+    transformed_results = transform_search_results_for_frontend(results.dict())
+    
+    return transformed_results
 
-@router.get("/subjects", response_model=UniversalSearchResponse)
+@router.get("/subjects")
 async def search_subjects(
     query: str = Query(..., description="Subject search query"),
     grade: Optional[str] = Query(None, description="Grade filter"),
@@ -176,9 +191,13 @@ async def search_subjects(
     
     search_service = UniversalSearchService(db)
     results = await search_service.universal_search(search_request)
-    return results
+    
+    # Transform results to match frontend expectations
+    transformed_results = transform_search_results_for_frontend(results.dict())
+    
+    return transformed_results
 
-@router.get("/activities", response_model=UniversalSearchResponse)
+@router.get("/activities")
 async def search_activities(
     query: str = Query(..., description="Activity search query"),
     activity_type: Optional[str] = Query(None, description="Activity type filter"),
@@ -199,9 +218,13 @@ async def search_activities(
     
     search_service = UniversalSearchService(db)
     results = await search_service.universal_search(search_request)
-    return results
+    
+    # Transform results to match frontend expectations
+    transformed_results = transform_search_results_for_frontend(results.dict())
+    
+    return transformed_results
 
-@router.get("/finance", response_model=UniversalSearchResponse)
+@router.get("/finance")
 async def search_finance(
     query: str = Query(..., description="Finance search query"),
     payment_type: Optional[str] = Query(None, description="Payment type filter"),
@@ -222,7 +245,11 @@ async def search_finance(
     
     search_service = UniversalSearchService(db)
     results = await search_service.universal_search(search_request)
-    return results
+    
+    # Transform results to match frontend expectations
+    transformed_results = transform_search_results_for_frontend(results.dict())
+    
+    return transformed_results
 
 @router.get("/health")
 async def search_health():

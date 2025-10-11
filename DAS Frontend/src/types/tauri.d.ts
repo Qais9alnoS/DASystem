@@ -31,6 +31,11 @@ export type {
     PermissionState
 } from '@tauri-apps/plugin-notification';
 
+// Window management functions
+export type {
+    getCurrent
+} from '@tauri-apps/api/window';
+
 // Global window extensions for Tauri v2
 declare global {
     interface Window {

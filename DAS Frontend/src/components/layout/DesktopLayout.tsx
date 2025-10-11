@@ -14,9 +14,7 @@ const DesktopLayout = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* Native Title Bar - handled by Rust/tauri-plugin-decorum */}
-      
-      {/* Main content area - no padding needed as native title bar handles spacing */}
+      {/* Main content area - overlay titlebar is provided natively by Tauri */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         {showSidebar && (

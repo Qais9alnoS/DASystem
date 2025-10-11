@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 import {
     GraduationCap,
     Users,
@@ -8,8 +9,10 @@ import {
     Bus,
     AlertTriangle,
     CheckCircle,
-    Clock
+    Clock,
+    Loader2
 } from 'lucide-react';
+import { studentsApi } from '@/services/api';
 
 interface StatCard {
     title: string;
@@ -25,65 +28,138 @@ interface StatCard {
 }
 
 export const StudentStats = () => {
-    const stats: StatCard[] = [
-        {
-            title: 'إجمالي الطلاب',
-            value: '1,247',
-            description: 'طلاب مسجلين في النظام',
-            icon: GraduationCap,
-            color: 'text-primary',
-            bgColor: 'bg-primary/10',
-            trend: { value: 12, isPositive: true }
-        },
-        {
-            title: 'الطلاب النشطين',
-            value: '1,198',
-            description: 'طلاب نشطين حالياً',
-            icon: CheckCircle,
-            color: 'text-green-600',
-            bgColor: 'bg-green-100 dark:bg-green-900/20',
-            trend: { value: 8, isPositive: true }
-        },
-        {
-            title: 'طلاب النقل',
-            value: '892',
-            description: 'يستخدمون النقل المدرسي',
-            icon: Bus,
-            color: 'text-secondary',
-            bgColor: 'bg-secondary/10',
-            trend: { value: 5, isPositive: true }
-        },
-        {
-            title: 'الرعاية الخاصة',
-            value: '23',
-            description: 'طلاب يحتاجون رعاية خاصة',
-            icon: AlertTriangle,
-            color: 'text-accent',
-            bgColor: 'bg-accent/10',
-            trend: { value: 2, isPositive: false }
-        }
-    ];
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState<StatCard[]>([]);
+    const [sessionStats, setSessionStats] = useState<any[]>([]);
+    const [gradeDistribution, setGradeDistribution] = useState<any[]>([]);
+    const { toast } = useToast();
 
-    const sessionStats = [
-        {
-            session: 'الفترة الصباحية',
-            count: 742,
-            percentage: 59.5,
-            color: 'bg-blue-500'
-        },
-        {
-            session: 'الفترة المسائية',
-            count: 505,
-            percentage: 40.5,
-            color: 'bg-purple-500'
-        }
-    ];
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                setLoading(true);
+                
+                // Fetch all students to calculate stats
+                const response = await studentsApi.getAll();
+                
+                if (response.success && response.data) {
+                    const students = response.data;
+                    const totalStudents = students.length;
+                    const activeStudents = students.filter(s => s.is_active).length;
+                    const transportStudents = students.filter(s => s.transportation_type !== 'walking').length;
+                    const specialNeedsStudents = students.filter(s => s.has_special_needs).length;
+                    
+                    // Session distribution
+                    const morningStudents = students.filter(s => s.session_type === 'morning').length;
+                    const eveningStudents = students.filter(s => s.session_type === 'evening').length;
+                    const morningPercentage = totalStudents > 0 ? Math.round((morningStudents / totalStudents) * 100) : 0;
+                    const eveningPercentage = totalStudents > 0 ? Math.round((eveningStudents / totalStudents) * 100) : 0;
+                    
+                    // Grade distribution
+                    const primaryStudents = students.filter(s => s.grade_level === 'primary').length;
+                    const intermediateStudents = students.filter(s => s.grade_level === 'intermediate').length;
+                    const secondaryStudents = students.filter(s => s.grade_level === 'secondary').length;
+                    const primaryPercentage = totalStudents > 0 ? Math.round((primaryStudents / totalStudents) * 100) : 0;
+                    const intermediatePercentage = totalStudents > 0 ? Math.round((intermediateStudents / totalStudents) * 100) : 0;
+                    const secondaryPercentage = totalStudents > 0 ? Math.round((secondaryStudents / totalStudents) * 100) : 0;
+                    
+                    // Update stats
+                    setStats([
+                        {
+                            title: 'إجمالي الطلاب',
+                            value: totalStudents.toLocaleString(),
+                            description: 'طلاب مسجلين في النظام',
+                            icon: GraduationCap,
+                            color: 'text-primary',
+                            bgColor: 'bg-primary/10',
+                            trend: { value: 12, isPositive: true }
+                        },
+                        {
+                            title: 'الطلاب النشطين',
+                            value: activeStudents.toLocaleString(),
+                            description: 'طلاب نشطين حالياً',
+                            icon: CheckCircle,
+                            color: 'text-green-600',
+                            bgColor: 'bg-green-100 dark:bg-green-900/20',
+                            trend: { value: 8, isPositive: true }
+                        },
+                        {
+                            title: 'طلاب النقل',
+                            value: transportStudents.toLocaleString(),
+                            description: 'يستخدمون النقل المدرسي',
+                            icon: Bus,
+                            color: 'text-secondary',
+                            bgColor: 'bg-secondary/10',
+                            trend: { value: 5, isPositive: true }
+                        },
+                        {
+                            title: 'الرعاية الخاصة',
+                            value: specialNeedsStudents.toLocaleString(),
+                            description: 'طلاب يحتاجون رعاية خاصة',
+                            icon: AlertTriangle,
+                            color: 'text-accent',
+                            bgColor: 'bg-accent/10',
+                            trend: { value: 2, isPositive: false }
+                        }
+                    ]);
+                    
+                    setSessionStats([
+                        {
+                            session: 'الفترة الصباحية',
+                            count: morningStudents,
+                            percentage: morningPercentage,
+                            color: 'bg-blue-500'
+                        },
+                        {
+                            session: 'الفترة المسائية',
+                            count: eveningStudents,
+                            percentage: eveningPercentage,
+                            color: 'bg-purple-500'
+                        }
+                    ]);
+                    
+                    setGradeDistribution([
+                        { 
+                            grade: 'الابتدائي', 
+                            count: primaryStudents, 
+                            percentage: primaryPercentage, 
+                            color: 'bg-primary' 
+                        },
+                        { 
+                            grade: 'الإعدادي', 
+                            count: intermediateStudents, 
+                            percentage: intermediatePercentage, 
+                            color: 'bg-secondary' 
+                        },
+                        { 
+                            grade: 'الثانوي', 
+                            count: secondaryStudents, 
+                            percentage: secondaryPercentage, 
+                            color: 'bg-accent' 
+                        }
+                    ]);
+                }
+            } catch (error) {
+                toast({
+                    title: "خطأ",
+                    description: "فشل في تحميل إحصائيات الطلاب",
+                    variant: "destructive"
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    const gradeDistribution = [
-        { grade: 'الابتدائي', count: 523, percentage: 41.9, color: 'bg-primary' },
-        { grade: 'الإعدادي', count: 412, percentage: 33.0, color: 'bg-secondary' },
-        { grade: 'الثانوي', count: 312, percentage: 25.1, color: 'bg-accent' }
-    ];
+        fetchStats();
+    }, [toast]);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-32">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
@@ -143,7 +219,7 @@ export const StudentStats = () => {
                             <div className="flex items-center justify-between">
                                 <span className="text-sm font-medium">{session.session}</span>
                                 <span className="text-sm text-muted-foreground">
-                                    {session.count} طالب ({session.percentage}%)
+                                    {session.count.toLocaleString()} طالب ({session.percentage}%)
                                 </span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -174,7 +250,7 @@ export const StudentStats = () => {
                             <div className="flex items-center justify-between">
                                 <span className="text-sm font-medium">{grade.grade}</span>
                                 <span className="text-sm text-muted-foreground">
-                                    {grade.count} طالب ({grade.percentage}%)
+                                    {grade.count.toLocaleString()} طالب ({grade.percentage}%)
                                 </span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">

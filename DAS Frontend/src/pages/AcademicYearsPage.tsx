@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 import {
     Search,
     Plus,
@@ -15,46 +16,118 @@ import {
     Archive,
     CheckCircle,
     Clock,
-    AlertTriangle
+    AlertTriangle,
+    Loader2
 } from 'lucide-react';
 import { AcademicYearForm } from '@/components/academic/AcademicYearForm';
+import { academicYearsApi } from '@/services/api';
+import { AcademicYear } from '@/types/school';
 
 const AcademicYearsPage = () => {
     const [activeTab, setActiveTab] = useState('overview');
     const [searchQuery, setSearchQuery] = useState('');
+    const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const { toast } = useToast();
 
-    // Mock data for academic years
-    const academicYears = [
-        {
-            id: 1,
-            year_name: '2024-2025',
-            description: 'السنة الدراسية الحالية',
-            is_active: true,
-            students_count: 1247,
-            teachers_count: 87,
-            created_at: '2024-08-15'
-        },
-        {
-            id: 2,
-            year_name: '2023-2024',
-            description: 'السنة الدراسية السابقة',
-            is_active: false,
-            students_count: 1156,
-            teachers_count: 82,
-            created_at: '2023-08-20'
-        },
-        {
-            id: 3,
-            year_name: '2025-2026',
-            description: 'السنة الدراسية القادمة - قيد التحضير',
-            is_active: false,
-            students_count: 0,
-            teachers_count: 0,
-            created_at: '2025-06-01'
-        }
-    ];
+    // Fetch academic years from backend
+    useEffect(() => {
+        const fetchAcademicYears = async () => {
+            try {
+                setLoading(true);
+                const response = await academicYearsApi.getAll();
+                if (response.success && response.data) {
+                    setAcademicYears(response.data);
+                } else {
+                    throw new Error(response.message || 'Failed to fetch academic years');
+                }
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'An error occurred while fetching academic years');
+                toast({
+                    title: "خطأ",
+                    description: "فشل في تحميل السنوات الدراسية",
+                    variant: "destructive"
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAcademicYears();
+    }, []);
 
     const currentYear = academicYears.find(year => year.is_active);
+
+    const handleCreateAcademicYear = async (data: any) => {
+        try {
+            const response = await academicYearsApi.create(data);
+            if (response.success && response.data) {
+                // Add the new academic year to the list
+                setAcademicYears(prev => [...prev, response.data!]);
+                setActiveTab('overview');
+                toast({
+                    title: "نجاح",
+                    description: "تم إنشاء السنة الدراسية بنجاح"
+                });
+            } else {
+                throw new Error(response.message || 'Failed to create academic year');
+            }
+        } catch (err) {
+            toast({
+                title: "خطأ",
+                description: err instanceof Error ? err.message : 'فشل في إنشاء السنة الدراسية',
+                variant: "destructive"
+            });
+        }
+    };
+
+    const handleActivateAcademicYear = async (yearId: number) => {
+        try {
+            const response = await academicYearsApi.update(yearId, { is_active: true });
+            if (response.success && response.data) {
+                // Update the academic years list
+                setAcademicYears(prev => 
+                    prev.map(year => ({
+                        ...year,
+                        is_active: year.id === yearId ? true : false
+                    }))
+                );
+                toast({
+                    title: "نجاح",
+                    description: "تم تفعيل السنة الدراسية بنجاح"
+                });
+            } else {
+                throw new Error(response.message || 'Failed to activate academic year');
+            }
+        } catch (err) {
+            toast({
+                title: "خطأ",
+                description: err instanceof Error ? err.message : 'فشل في تفعيل السنة الدراسية',
+                variant: "destructive"
+            });
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-destructive" />
+                    <h3 className="text-lg font-medium mb-2">خطأ في تحميل البيانات</h3>
+                    <p className="text-muted-foreground">{error}</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -94,12 +167,14 @@ const AcademicYearsPage = () => {
                             </div>
                             <div className="flex items-center space-x-6 space-x-reverse">
                                 <div className="text-center">
-                                    <p className="text-2xl font-bold">{currentYear.students_count.toLocaleString()}</p>
-                                    <p className="text-sm text-muted-foreground">طالب</p>
+                                    <p className="text-2xl font-bold">
+                                        {academicYears.filter(y => y.is_active).length}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">سنة نشطة</p>
                                 </div>
                                 <div className="text-center">
-                                    <p className="text-2xl font-bold">{currentYear.teachers_count}</p>
-                                    <p className="text-sm text-muted-foreground">معلم</p>
+                                    <p className="text-2xl font-bold">{academicYears.length}</p>
+                                    <p className="text-sm text-muted-foreground">إجمالي السنوات</p>
                                 </div>
                             </div>
                         </div>
@@ -135,7 +210,9 @@ const AcademicYearsPage = () => {
                                 <p className="text-sm font-medium text-muted-foreground">
                                     السنة النشطة
                                 </p>
-                                <p className="text-2xl font-bold">1</p>
+                                <p className="text-2xl font-bold">
+                                    {academicYears.filter(y => y.is_active).length}
+                                </p>
                                 <p className="text-xs text-muted-foreground">
                                     قيد التشغيل حالياً
                                 </p>
@@ -154,7 +231,9 @@ const AcademicYearsPage = () => {
                                 <p className="text-sm font-medium text-muted-foreground">
                                     في التحضير
                                 </p>
-                                <p className="text-2xl font-bold">1</p>
+                                <p className="text-2xl font-bold">
+                                    {academicYears.filter(y => !y.is_active).length}
+                                </p>
                                 <p className="text-xs text-muted-foreground">
                                     سنة قادمة
                                 </p>
@@ -173,7 +252,7 @@ const AcademicYearsPage = () => {
                                 <p className="text-sm font-medium text-muted-foreground">
                                     مؤرشفة
                                 </p>
-                                <p className="text-2xl font-bold">1</p>
+                                <p className="text-2xl font-bold">0</p>
                                 <p className="text-xs text-muted-foreground">
                                     سنة سابقة
                                 </p>
@@ -227,62 +306,95 @@ const AcademicYearsPage = () => {
 
                     {/* Academic Years List */}
                     <div className="space-y-4">
-                        {academicYears.map((year) => (
-                            <Card key={year.id} className={year.is_active ? 'border-primary/20' : ''}>
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center space-x-4 space-x-reverse">
-                                            <div className={`p-3 rounded-full ${year.is_active
-                                                    ? 'bg-primary/10'
-                                                    : year.students_count > 0
-                                                        ? 'bg-gray-100 dark:bg-gray-800'
-                                                        : 'bg-yellow-100 dark:bg-yellow-900/20'
-                                                }`}>
-                                                {year.is_active ? (
-                                                    <CheckCircle className="h-6 w-6 text-primary" />
-                                                ) : year.students_count > 0 ? (
-                                                    <Archive className="h-6 w-6 text-gray-600" />
-                                                ) : (
-                                                    <Clock className="h-6 w-6 text-yellow-600" />
-                                                )}
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center space-x-2 space-x-reverse">
-                                                    <h3 className="text-lg font-semibold">{year.year_name}</h3>
-                                                    {year.is_active && (
-                                                        <Badge className="bg-primary">نشطة</Badge>
+                        {academicYears
+                            .filter(year => 
+                                searchQuery === '' || 
+                                year.year_name.includes(searchQuery) || 
+                                (year.description && year.description.includes(searchQuery))
+                            )
+                            .map((year) => (
+                                <Card key={year.id} className={year.is_active ? 'border-primary/20' : ''}>
+                                    <CardContent className="p-6">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center space-x-4 space-x-reverse">
+                                                <div className={`p-3 rounded-full ${year.is_active
+                                                        ? 'bg-primary/10'
+                                                        : academicYears.filter(y => y.is_active).length > 0
+                                                            ? 'bg-gray-100 dark:bg-gray-800'
+                                                            : 'bg-yellow-100 dark:bg-yellow-900/20'
+                                                    }`}>
+                                                    {year.is_active ? (
+                                                        <CheckCircle className="h-6 w-6 text-primary" />
+                                                    ) : academicYears.filter(y => y.is_active).length > 0 ? (
+                                                        <Archive className="h-6 w-6 text-gray-600" />
+                                                    ) : (
+                                                        <Clock className="h-6 w-6 text-yellow-600" />
                                                     )}
                                                 </div>
-                                                <p className="text-sm text-muted-foreground">{year.description}</p>
-                                                <p className="text-xs text-muted-foreground mt-1">
-                                                    تم الإنشاء: {new Date(year.created_at).toLocaleDateString('ar-EG')}
-                                                </p>
+                                                <div>
+                                                    <div className="flex items-center space-x-2 space-x-reverse">
+                                                        <h3 className="text-lg font-semibold">{year.year_name}</h3>
+                                                        {year.is_active && (
+                                                            <Badge className="bg-primary">نشطة</Badge>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground">{year.description || 'لا يوجد وصف'}</p>
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        تم الإنشاء: {year.created_at ? new Date(year.created_at).toLocaleDateString('ar-EG') : 'غير محدد'}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center space-x-6 space-x-reverse">
-                                            <div className="text-center">
-                                                <p className="text-lg font-bold">{year.students_count.toLocaleString()}</p>
-                                                <p className="text-xs text-muted-foreground">طالب</p>
-                                            </div>
-                                            <div className="text-center">
-                                                <p className="text-lg font-bold">{year.teachers_count}</p>
-                                                <p className="text-xs text-muted-foreground">معلم</p>
-                                            </div>
-                                            <div className="flex space-x-2 space-x-reverse">
-                                                <Button variant="outline" size="sm">
-                                                    تعديل
-                                                </Button>
-                                                {!year.is_active && (
+                                            <div className="flex items-center space-x-6 space-x-reverse">
+                                                <div className="text-center">
+                                                    <p className="text-lg font-bold">-</p>
+                                                    <p className="text-xs text-muted-foreground">طالب</p>
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-lg font-bold">-</p>
+                                                    <p className="text-xs text-muted-foreground">معلم</p>
+                                                </div>
+                                                <div className="flex space-x-2 space-x-reverse">
                                                     <Button variant="outline" size="sm">
-                                                        تفعيل
+                                                        تعديل
                                                     </Button>
-                                                )}
+                                                    {!year.is_active && (
+                                                        <Button 
+                                                            variant="outline" 
+                                                            size="sm"
+                                                            onClick={() => handleActivateAcademicYear(year.id!)}
+                                                        >
+                                                            تفعيل
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        
+                        {academicYears.filter(year => 
+                            searchQuery === '' || 
+                            year.year_name.includes(searchQuery) || 
+                            (year.description && year.description.includes(searchQuery))
+                        ).length === 0 && (
+                            <Card>
+                                <CardContent className="p-12 text-center">
+                                    <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                                    <h3 className="text-lg font-medium mb-2">لا توجد سنوات دراسية</h3>
+                                    <p className="text-muted-foreground">
+                                        {searchQuery ? 'لا توجد نتائج مطابقة لبحثك' : 'لم يتم إنشاء أي سنوات دراسية بعد'}
+                                    </p>
+                                    <Button 
+                                        className="mt-4 gap-2" 
+                                        onClick={() => setActiveTab('create')}
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        إنشاء سنة دراسية
+                                    </Button>
                                 </CardContent>
                             </Card>
-                        ))}
+                        )}
                     </div>
                 </TabsContent>
 
@@ -298,7 +410,10 @@ const AcademicYearsPage = () => {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <AcademicYearForm />
+                            <AcademicYearForm 
+                                onSubmit={handleCreateAcademicYear}
+                                onCancel={() => setActiveTab('overview')}
+                            />
                         </CardContent>
                     </Card>
                 </TabsContent>

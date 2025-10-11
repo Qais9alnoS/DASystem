@@ -219,16 +219,6 @@ export const SubjectsManagementPage: React.FC = () => {
   };
 
   const handleDeleteSubject = async (subjectId: number) => {
-    // In a real implementation, we would call the delete API endpoint
-    // For now, we'll just show a toast message since the API doesn't seem to have a delete endpoint
-    toast({
-      title: "ملاحظة",
-      description: "حذف المواد غير متوفر حالياً في النظام",
-      variant: "default"
-    });
-    
-    // If delete functionality was available, it would look like this:
-    /*
     try {
       const response = await subjectsApi.delete(subjectId);
       if (response.success) {
@@ -248,7 +238,6 @@ export const SubjectsManagementPage: React.FC = () => {
         variant: "destructive"
       });
     }
-    */
   };
 
   const uniqueGrades = Array.from(new Set(classes.map(c => c.name)));

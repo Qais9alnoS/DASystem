@@ -62,38 +62,16 @@ const AdvancedScheduleConstraintsPage: React.FC = () => {
                 const constraintsResponse = await schedulesApi.getConstraints(academicYearId);
                 setConstraints(constraintsResponse.data || []);
 
-                // For templates, we'll use mock data for now
-                const mockTemplates: ConstraintTemplate[] = [
-                    {
-                        id: 1,
-                        template_name: 'عدم الجدولة في الحصة الأولى',
-                        template_description: 'منع جدولة مواد معينة في الحصة الأولى لتجنب التأخير',
-                        constraint_config: {
-                            constraint_type: 'forbidden',
-                            period_number: 1,
-                            priority_level: 3,
-                            session_type: 'both'
-                        },
-                        is_system_template: true,
-                        usage_count: 5,
-                        created_at: '2024-01-10'
-                    },
-                    {
-                        id: 2,
-                        template_name: 'حد أقصى للحصص المتتالية',
-                        template_description: 'تحديد حد أقصى للحصص المتتالية لمادة واحدة',
-                        constraint_config: {
-                            constraint_type: 'max_consecutive',
-                            max_value: 2,
-                            priority_level: 2,
-                            session_type: 'both'
-                        },
-                        is_system_template: true,
-                        usage_count: 8,
-                        created_at: '2024-01-11'
-                    }
-                ];
-                setTemplates(mockTemplates);
+                // Fetch constraint templates
+                const templatesResponse = await schedulesApi.getConstraintTemplates();
+                if (templatesResponse.success && templatesResponse.data) {
+                    // Add usage_count property for UI display (not part of the API response)
+                    const templatesWithUsage: any[] = templatesResponse.data.map(template => ({
+                        ...template,
+                        usage_count: 0 // This would need to be tracked separately or added to the backend
+                    }));
+                    setTemplates(templatesWithUsage);
+                }
             } catch (error: any) {
                 console.error('Error fetching constraints data:', error);
                 toast({
@@ -262,7 +240,7 @@ const AdvancedScheduleConstraintsPage: React.FC = () => {
         setShowConstraintDialog(true);
 
         setTemplates(templates.map(t =>
-            t.id === template.id ? { ...t, usage_count: t.usage_count + 1 } : t
+            t.id === template.id ? { ...t, usage_count: (t as any).usage_count + 1 } : t
         ));
 
         toast({
@@ -540,10 +518,10 @@ const AdvancedScheduleConstraintsPage: React.FC = () => {
                                 <Input
                                     id="max_value"
                                     type="number"
-                                    value={constraintForm.max_value || ''}
+                                    value={constraintForm.max_consecutive_periods || ''}
                                     onChange={(e) => setConstraintForm({
                                         ...constraintForm,
-                                        max_value: e.target.value ? parseInt(e.target.value) : undefined
+                                        max_consecutive_periods: e.target.value ? parseInt(e.target.value) : undefined
                                     })}
                                     className="col-span-3"
                                     placeholder="الحد الأقصى للحصص المتتالية"

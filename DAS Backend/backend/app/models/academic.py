@@ -6,6 +6,7 @@ from app.models.base import BaseModel
 class AcademicYear(BaseModel):
     __tablename__ = "academic_years"
     
+    # Academic year attributes
     year_name = Column(String(20), nullable=False)  # e.g., "2025-2026"
     description = Column(Text)
     is_active = Column(Boolean, default=False)
@@ -13,6 +14,7 @@ class AcademicYear(BaseModel):
 class Class(BaseModel):
     __tablename__ = "classes"
     
+    # Class attributes
     academic_year_id = Column(Integer, ForeignKey("academic_years.id"), nullable=False)
     session_type = Column(String(10), nullable=False)  # morning, evening
     grade_level = Column(String(15), nullable=False)  # primary, intermediate, secondary
@@ -34,9 +36,11 @@ AcademicYear.classes = relationship("Class", back_populates="academic_year")
 class Subject(BaseModel):
     __tablename__ = "subjects"
     
+    # Subject attributes
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
     subject_name = Column(String(100), nullable=False)
     weekly_hours = Column(Integer, nullable=False)
+    is_active = Column(Boolean, default=True)
     
     # Relationships
     class_rel = relationship("Class", back_populates="subjects")

@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from '../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { Calendar, Clock, DollarSign, Users, TrendingUp, FileText, Calculator, AlertCircle, CheckCircle } from 'lucide-react';
+import { Calendar, Clock, DollarSign, Users, TrendingUp, FileText, Calculator, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { teachersApi, academicYearsApi } from '@/services/api';
+import { useToast } from '@/hooks/use-toast';
 
 interface TeacherPayrollRecord {
     id: string;
@@ -50,80 +52,27 @@ interface SalaryCalculation {
     deductionTypes: { name: string; amount: number }[];
 }
 
+interface Teacher {
+    id?: number;
+    full_name: string;
+    academic_year_id: number;
+    is_active: boolean;
+}
+
 const TeacherPayrollSystemPage: React.FC = () => {
+    const { toast } = useToast();
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [activeTab, setActiveTab] = useState('attendance');
     const [selectedTeacher, setSelectedTeacher] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [academicYears, setAcademicYears] = useState<any[]>([]);
+    const [selectedAcademicYear, setSelectedAcademicYear] = useState<number | null>(null);
 
-    // Mock data
-    const [payrollRecords, setPayrollRecords] = useState<TeacherPayrollRecord[]>([
-        {
-            id: '1',
-            teacherId: 't001',
-            teacherName: 'Ahmed Al-Rashid',
-            teacherNameAr: 'أحمد الراشد',
-            month: 'January',
-            year: 2024,
-            baseHours: 120,
-            actualHours: 118,
-            overtimeHours: 8,
-            baseSalary: 800000,
-            overtimePay: 50000,
-            bonuses: 100000,
-            deductions: 25000,
-            totalSalary: 925000,
-            status: 'approved',
-            attendanceRate: 98.3,
-            extraClasses: 4,
-            subjects: ['Mathematics', 'Physics']
-        },
-        {
-            id: '2',
-            teacherId: 't002',
-            teacherName: 'Fatima Al-Zahra',
-            teacherNameAr: 'فاطمة الزهراء',
-            month: 'January',
-            year: 2024,
-            baseHours: 100,
-            actualHours: 95,
-            overtimeHours: 0,
-            baseSalary: 650000,
-            overtimePay: 0,
-            bonuses: 50000,
-            deductions: 0,
-            totalSalary: 700000,
-            status: 'draft',
-            attendanceRate: 95.0,
-            extraClasses: 0,
-            subjects: ['Arabic', 'Islamic Studies']
-        }
-    ]);
-
-    const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([
-        {
-            id: '1',
-            teacherId: 't001',
-            date: '2024-01-15',
-            scheduledHours: 6,
-            actualHours: 8,
-            status: 'extra',
-            notes: 'Extra tutoring session for Grade 12',
-            classesAttended: ['Math-12A', 'Math-12B', 'Physics-11A', 'Extra-Tutoring'],
-            overtimeReason: 'Student exam preparation'
-        },
-        {
-            id: '2',
-            teacherId: 't002',
-            date: '2024-01-15',
-            scheduledHours: 5,
-            actualHours: 5,
-            status: 'present',
-            notes: 'Regular classes completed',
-            classesAttended: ['Arabic-10A', 'Arabic-10B', 'Islamic-9A']
-        }
-    ]);
-
+    // Real data from API
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
+    const [payrollRecords, setPayrollRecords] = useState<TeacherPayrollRecord[]>([]);
+    const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
     const [salarySettings, setSalarySettings] = useState<SalaryCalculation>({
         baseRate: 7500, // IQD per hour
         overtimeRate: 10000, // IQD per hour
@@ -135,16 +84,153 @@ const TeacherPayrollSystemPage: React.FC = () => {
         ]
     });
 
-    const teachers = [
-        { id: 't001', name: 'Ahmed Al-Rashid', nameAr: 'أحمد الراشد' },
-        { id: 't002', name: 'Fatima Al-Zahra', nameAr: 'فاطمة الزهراء' },
-        { id: 't003', name: 'Omar Al-Faruq', nameAr: 'عمر الفاروق' }
-    ];
-
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
     ];
+
+    // Fetch data on component mount
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                // Fetch academic years
+                const yearsResponse = await academicYearsApi.getAll();
+                if (yearsResponse.success && yearsResponse.data) {
+                    setAcademicYears(yearsResponse.data);
+                    // Set default to the first active academic year
+                    const activeYear = yearsResponse.data.find((year: any) => year.is_active) || yearsResponse.data[0];
+                    if (activeYear) {
+                        setSelectedAcademicYear(activeYear.id || null);
+                    }
+                }
+
+                // Fetch teachers
+                const teachersResponse = await teachersApi.getAll({ academic_year_id: selectedAcademicYear || undefined });
+                if (teachersResponse.success && teachersResponse.data) {
+                    setTeachers(teachersResponse.data);
+                }
+
+                // Fetch attendance records for the selected month and year
+                await fetchAttendanceRecords();
+                
+                // Fetch payroll records
+                await fetchPayrollRecords();
+            } catch (error: any) {
+                console.error('Error fetching data:', error);
+                toast({
+                    title: "خطأ",
+                    description: "فشل في تحميل البيانات",
+                    variant: "destructive"
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [selectedAcademicYear]);
+
+    const fetchAttendanceRecords = async () => {
+        if (!selectedAcademicYear) return;
+        
+        try {
+            // For now, we'll fetch attendance for all teachers for the selected month
+            // In a real implementation, you might want to filter by date
+            const allAttendance: AttendanceRecord[] = [];
+            
+            for (const teacher of teachers) {
+                if (!teacher.id) continue;
+                
+                try {
+                    const response = await teachersApi.getAttendance(teacher.id, selectedMonth + 1, selectedYear);
+                    if (response.success && response.data) {
+                        // Transform teacher attendance data to our AttendanceRecord format
+                        const records = response.data.map((attendance: any) => ({
+                            id: `${attendance.id}`,
+                            teacherId: `${teacher.id}`,
+                            date: attendance.attendance_date,
+                            scheduledHours: 6, // This would come from teacher schedule
+                            actualHours: attendance.total_hours_worked || 0,
+                            status: attendance.status || 'present',
+                            notes: attendance.notes || '',
+                            classesAttended: [], // This would come from teacher assignments
+                            overtimeReason: attendance.notes || ''
+                        }));
+                        allAttendance.push(...records);
+                    }
+                } catch (error) {
+                    console.error(`Error fetching attendance for teacher ${teacher.id}:`, error);
+                }
+            }
+            
+            setAttendanceRecords(allAttendance);
+        } catch (error) {
+            console.error('Error fetching attendance records:', error);
+            toast({
+                title: "خطأ",
+                description: "فشل في تحميل سجل الحضور",
+                variant: "destructive"
+            });
+        }
+    };
+
+    const fetchPayrollRecords = async () => {
+        if (!selectedAcademicYear) return;
+        
+        try {
+            // Fetch finance records for all teachers for the selected month and year
+            const allPayrollRecords: TeacherPayrollRecord[] = [];
+            
+            for (const teacher of teachers) {
+                if (!teacher.id) continue;
+                
+                try {
+                    const response = await teachersApi.getFinanceRecords(teacher.id, {
+                        academic_year_id: selectedAcademicYear,
+                        month: selectedMonth + 1,
+                        year: selectedYear
+                    });
+                    
+                    if (response.success && response.data) {
+                        // Transform teacher finance data to our TeacherPayrollRecord format
+                        const records = response.data.map((finance: any) => ({
+                            id: `${finance.id}`,
+                            teacherId: `${teacher.id}`,
+                            teacherName: teacher.full_name,
+                            teacherNameAr: teacher.full_name, // In a real implementation, this would be the Arabic name
+                            month: months[selectedMonth],
+                            year: selectedYear,
+                            baseHours: 120, // This would come from teacher contract
+                            actualHours: 120, // This would come from attendance records
+                            overtimeHours: 0, // This would come from attendance records
+                            baseSalary: finance.base_salary || 0,
+                            overtimePay: finance.bonuses || 0,
+                            bonuses: 0, // This would come from additional bonuses
+                            deductions: finance.deductions || 0,
+                            totalSalary: finance.total_amount || 0,
+                            status: finance.payment_status || 'draft',
+                            attendanceRate: 100, // This would come from attendance records
+                            extraClasses: 0, // This would come from attendance records
+                            subjects: [] // This would come from teacher assignments
+                        }));
+                        allPayrollRecords.push(...records);
+                    }
+                } catch (error) {
+                    console.error(`Error fetching finance records for teacher ${teacher.id}:`, error);
+                }
+            }
+            
+            setPayrollRecords(allPayrollRecords);
+        } catch (error) {
+            console.error('Error fetching payroll records:', error);
+            toast({
+                title: "خطأ",
+                description: "فشل في تحميل كشوف الرواتب",
+                variant: "destructive"
+            });
+        }
+    };
 
     const calculateSalary = (baseHours: number, actualHours: number, overtimeHours: number) => {
         const basePay = Math.min(actualHours, baseHours) * salarySettings.baseRate;
@@ -172,8 +258,27 @@ const TeacherPayrollSystemPage: React.FC = () => {
 
     const generatePayrollReport = () => {
         // Logic to generate and export payroll report
-        console.log('Generating payroll report for', months[selectedMonth], selectedYear);
+        toast({
+            title: "تقرير الرواتب",
+            description: "جاري إنشاء تقرير الرواتب...",
+        });
     };
+
+    // Calculate summary statistics
+    const totalSalary = payrollRecords.reduce((sum, record) => sum + record.totalSalary, 0);
+    const avgAttendanceRate = payrollRecords.length > 0 
+        ? payrollRecords.reduce((sum, record) => sum + record.attendanceRate, 0) / payrollRecords.length 
+        : 0;
+    const totalOvertimeHours = payrollRecords.reduce((sum, record) => sum + record.overtimeHours, 0);
+    const activeTeachers = teachers.filter(t => t.is_active).length;
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6" dir="rtl">
@@ -185,6 +290,21 @@ const TeacherPayrollSystemPage: React.FC = () => {
                         <p className="text-gray-600 mt-2">إدارة رواتب المعلمين وتتبع الحضور والساعات الإضافية</p>
                     </div>
                     <div className="flex gap-3">
+                        <Select 
+                            value={selectedAcademicYear?.toString() || ''} 
+                            onValueChange={(value) => setSelectedAcademicYear(parseInt(value))}
+                        >
+                            <SelectTrigger className="w-48">
+                                <SelectValue placeholder="اختر السنة الدراسية" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {academicYears.map(year => (
+                                    <SelectItem key={year.id} value={year.id?.toString() || ''}>
+                                        {year.year_name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <Select value={selectedMonth.toString()} onValueChange={(value) => setSelectedMonth(parseInt(value))}>
                             <SelectTrigger className="w-32">
                                 <SelectValue />
@@ -200,6 +320,7 @@ const TeacherPayrollSystemPage: React.FC = () => {
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="2025">2025</SelectItem>
                                 <SelectItem value="2024">2024</SelectItem>
                                 <SelectItem value="2023">2023</SelectItem>
                             </SelectContent>
@@ -219,7 +340,7 @@ const TeacherPayrollSystemPage: React.FC = () => {
                             <DollarSign className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(1625000)}</div>
+                            <div className="text-2xl font-bold">{formatCurrency(totalSalary)}</div>
                             <p className="text-xs text-muted-foreground">+5% من الشهر الماضي</p>
                         </CardContent>
                     </Card>
@@ -229,7 +350,7 @@ const TeacherPayrollSystemPage: React.FC = () => {
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">96.7%</div>
+                            <div className="text-2xl font-bold">{avgAttendanceRate.toFixed(1)}%</div>
                             <p className="text-xs text-muted-foreground">ممتاز</p>
                         </CardContent>
                     </Card>
@@ -239,7 +360,7 @@ const TeacherPayrollSystemPage: React.FC = () => {
                             <Clock className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">24</div>
+                            <div className="text-2xl font-bold">{totalOvertimeHours}</div>
                             <p className="text-xs text-muted-foreground">ساعة هذا الشهر</p>
                         </CardContent>
                     </Card>
@@ -249,8 +370,8 @@ const TeacherPayrollSystemPage: React.FC = () => {
                             <Users className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">15</div>
-                            <p className="text-xs text-muted-foreground">من أصل 18 معلم</p>
+                            <div className="text-2xl font-bold">{activeTeachers}</div>
+                            <p className="text-xs text-muted-foreground">من أصل {teachers.length} معلم</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -282,8 +403,8 @@ const TeacherPayrollSystemPage: React.FC = () => {
                                                 <SelectContent>
                                                     <SelectItem value="">جميع المعلمين</SelectItem>
                                                     {teachers.map(teacher => (
-                                                        <SelectItem key={teacher.id} value={teacher.id}>
-                                                            {teacher.nameAr} - {teacher.name}
+                                                        <SelectItem key={teacher.id} value={teacher.id?.toString() || ''}>
+                                                            {teacher.full_name}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
@@ -309,13 +430,12 @@ const TeacherPayrollSystemPage: React.FC = () => {
                                         </TableHeader>
                                         <TableBody>
                                             {attendanceRecords.map((record) => {
-                                                const teacher = teachers.find(t => t.id === record.teacherId);
+                                                const teacher = teachers.find(t => t.id?.toString() === record.teacherId);
                                                 return (
                                                     <TableRow key={record.id}>
                                                         <TableCell>
                                                             <div>
-                                                                <div className="font-medium">{teacher?.nameAr}</div>
-                                                                <div className="text-sm text-gray-500">{teacher?.name}</div>
+                                                                <div className="font-medium">{teacher?.full_name}</div>
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>{new Date(record.date).toLocaleDateString('ar')}</TableCell>
@@ -431,7 +551,7 @@ const TeacherPayrollSystemPage: React.FC = () => {
                                                 <CardTitle className="text-lg">إجمالي الساعات الإضافية</CardTitle>
                                             </CardHeader>
                                             <CardContent>
-                                                <div className="text-3xl font-bold text-blue-600">24</div>
+                                                <div className="text-3xl font-bold text-blue-600">{totalOvertimeHours}</div>
                                                 <p className="text-sm text-gray-600">هذا الشهر</p>
                                             </CardContent>
                                         </Card>
@@ -440,7 +560,7 @@ const TeacherPayrollSystemPage: React.FC = () => {
                                                 <CardTitle className="text-lg">قيمة الساعات الإضافية</CardTitle>
                                             </CardHeader>
                                             <CardContent>
-                                                <div className="text-3xl font-bold text-green-600">{formatCurrency(240000)}</div>
+                                                <div className="text-3xl font-bold text-green-600">{formatCurrency(totalOvertimeHours * salarySettings.overtimeRate)}</div>
                                                 <p className="text-sm text-gray-600">إجمالي المدفوعات</p>
                                             </CardContent>
                                         </Card>
@@ -450,7 +570,7 @@ const TeacherPayrollSystemPage: React.FC = () => {
                                             </CardHeader>
                                             <CardContent>
                                                 <div className="text-3xl font-bold text-purple-600">8</div>
-                                                <p className="text-sm text-gray-600">من أصل 15 معلم</p>
+                                                <p className="text-sm text-gray-600">من أصل {activeTeachers} معلم</p>
                                             </CardContent>
                                         </Card>
                                     </div>

@@ -239,6 +239,7 @@ export interface TeacherAttendance {
     hourly_rate?: number; // سعر الحصة (للحساب التلقائي للراتب)
     calculated_salary?: number; // الراتب المحسوب تلقائياً
     notes?: string;
+    status?: 'present' | 'absent' | 'late' | 'excused'; // Add status field
     created_at?: string;
 }
 
@@ -416,6 +417,17 @@ export type ConstraintType =
     | 'no_consecutive'
     | 'max_consecutive'
     | 'min_consecutive';
+
+// Constraint Template Interface
+export interface ConstraintTemplate {
+    id: number;
+    template_name: string;
+    template_description: string;
+    constraint_config: Partial<ScheduleConstraint>;
+    is_system_template: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
 
 // ===== Director Dashboard =====
 

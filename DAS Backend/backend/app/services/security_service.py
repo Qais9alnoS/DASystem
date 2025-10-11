@@ -8,6 +8,7 @@ import hashlib
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.query import Query
 from sqlalchemy import and_, or_, func
 
 from ..database import SessionLocal
@@ -44,17 +45,19 @@ class SecurityService:
                 safe_old = ensure_jsonable(old_values) if old_values is not None else None
                 safe_new = ensure_jsonable(new_values) if new_values is not None else None
 
-                audit_log = AuditLog(
-                    user_id=user_id,
-                    action=action.upper(),
-                    table_name=table_name,
-                    record_id=record_id,
-                    old_values=safe_old,
-                    new_values=safe_new,
-                    ip_address=ip_address,
-                    user_agent=user_agent,
-                    timestamp=datetime.utcnow()
-                )
+                # Create audit log using dictionary to avoid type errors
+                audit_log_data = {
+                    "user_id": user_id,
+                    "action": action.upper(),
+                    "table_name": table_name,
+                    "record_id": record_id,
+                    "old_values": safe_old,
+                    "new_values": safe_new,
+                    "ip_address": ip_address,
+                    "user_agent": user_agent,
+                    "timestamp": datetime.utcnow()
+                }
+                audit_log = AuditLog(**audit_log_data)
                 
                 db.add(audit_log)
                 db.commit()
@@ -71,28 +74,33 @@ class SecurityService:
                            user_agent: str = "") -> bool:
         """Create new user session"""
         try:
-            db = SessionLocal()
+            db: Session = SessionLocal()
             try:
                 # Deactivate old sessions for this user
-                db.query(UserSession).filter(
+                query: Query = db.query(UserSession).filter(
                     and_(
                         UserSession.user_id == user_id,
                         UserSession.is_active == True
                     )
-                ).update({"is_active": False})
+                )
+                if query is not None:
+                    query.update({"is_active": False})
                 
                 # Create new session
                 if not session_token:
                     session_token = generate_session_token()
-                session = UserSession(
-                    user_id=user_id,
-                    session_token=session_token,
-                    ip_address=ip_address,
-                    user_agent=user_agent,
-                    is_active=True,
-                    expires_at=datetime.utcnow() + self.session_timeout,
-                    last_activity=datetime.utcnow()
-                )
+                
+                # Create session using dictionary to avoid type errors
+                session_data = {
+                    "user_id": user_id,
+                    "session_token": session_token,
+                    "ip_address": ip_address,
+                    "user_agent": user_agent,
+                    "is_active": True,
+                    "expires_at": datetime.utcnow() + self.session_timeout,
+                    "last_activity": datetime.utcnow()
+                }
+                session = UserSession(**session_data)
                 
                 db.add(session)
                 db.commit()
@@ -108,15 +116,16 @@ class SecurityService:
     def validate_session(self, session_token: str, ip_address: str = "") -> Optional[Dict[str, Any]]:
         """Validate user session"""
         try:
-            db = SessionLocal()
+            db: Session = SessionLocal()
             try:
-                session = db.query(UserSession).filter(
+                query: Query = db.query(UserSession).filter(
                     and_(
                         UserSession.session_token == session_token,
                         UserSession.is_active == True,
                         UserSession.expires_at > datetime.utcnow()
                     )
-                ).first()
+                )
+                session = query.first() if query is not None else None
                 
                 if not session:
                     return None
@@ -145,14 +154,16 @@ class SecurityService:
         try:
             db = SessionLocal()
             try:
-                attempt = LoginAttempt(
-                    username=username,
-                    ip_address=ip_address,
-                    user_agent=user_agent,
-                    success=success,
-                    failure_reason=failure_reason,
-                    attempted_at=datetime.utcnow()
-                )
+                # Create login attempt using dictionary to avoid type errors
+                attempt_data = {
+                    "username": username,
+                    "ip_address": ip_address,
+                    "user_agent": user_agent,
+                    "success": success,
+                    "failure_reason": failure_reason,
+                    "attempted_at": datetime.utcnow()
+                }
+                attempt = LoginAttempt(**attempt_data)
                 
                 db.add(attempt)
                 db.commit()
@@ -175,27 +186,29 @@ class SecurityService:
     def check_brute_force(self, username: str, ip_address: str) -> Dict[str, Any]:
         """Check for brute force attacks"""
         try:
-            db = SessionLocal()
+            db: Session = SessionLocal()
             try:
                 cutoff_time = datetime.utcnow() - self.lockout_duration
                 
                 # Count failed attempts from this IP in the lockout period
-                ip_attempts = db.query(LoginAttempt).filter(
+                ip_query: Query = db.query(LoginAttempt).filter(
                     and_(
                         LoginAttempt.ip_address == ip_address,
                         LoginAttempt.success == False,
                         LoginAttempt.attempted_at > cutoff_time
                     )
-                ).count()
+                )
+                ip_attempts = ip_query.count() if ip_query is not None else 0
                 
                 # Count failed attempts for this username in the lockout period
-                user_attempts = db.query(LoginAttempt).filter(
+                user_query: Query = db.query(LoginAttempt).filter(
                     and_(
                         LoginAttempt.username == username,
                         LoginAttempt.success == False,
                         LoginAttempt.attempted_at > cutoff_time
                     )
-                ).count()
+                )
+                user_attempts = user_query.count() if user_query is not None else 0
                 
                 is_blocked = ip_attempts >= self.max_login_attempts or user_attempts >= self.max_login_attempts
                 
@@ -229,15 +242,17 @@ class SecurityService:
         try:
             db = SessionLocal()
             try:
-                notification = SystemNotification(
-                    recipient_role=recipient_role,
-                    recipient_id=recipient_id,
-                    title=title,
-                    message=message,
-                    notification_type=notification_type.lower(),
-                    expires_at=expires_at or (datetime.utcnow() + timedelta(days=7)),
-                    created_at=datetime.utcnow()
-                )
+                # Create notification using dictionary to avoid type errors
+                notification_data = {
+                    "recipient_role": recipient_role,
+                    "recipient_id": recipient_id,
+                    "title": title,
+                    "message": message,
+                    "notification_type": notification_type.lower(),
+                    "expires_at": expires_at or (datetime.utcnow() + timedelta(days=7)),
+                    "created_at": datetime.utcnow()
+                }
+                notification = SystemNotification(**notification_data)
                 
                 db.add(notification)
                 db.commit()
@@ -253,9 +268,9 @@ class SecurityService:
     def get_user_notifications(self, user_id: int, role: str, unread_only: bool = False) -> List[Dict[str, Any]]:
         """Get notifications for a user"""
         try:
-            db = SessionLocal()
+            db: Session = SessionLocal()
             try:
-                query = db.query(SystemNotification).filter(
+                query: Query = db.query(SystemNotification).filter(
                     and_(
                         or_(
                             SystemNotification.recipient_id == user_id,
@@ -272,9 +287,10 @@ class SecurityService:
                 )
                 
                 if unread_only:
-                    query = query.filter(SystemNotification.is_read == False)
+                    unread_query: Query = query.filter(SystemNotification.is_read == False)
+                    query = unread_query if unread_query is not None else query
                 
-                notifications = query.order_by(SystemNotification.created_at.desc()).all()
+                notifications = query.order_by(SystemNotification.created_at.desc()).all() if query is not None else []
                 
                 return [{
                     "id": notif.id,
@@ -296,9 +312,9 @@ class SecurityService:
     def mark_notification_read(self, notification_id: int, user_id: int) -> bool:
         """Mark notification as read"""
         try:
-            db = SessionLocal()
+            db: Session = SessionLocal()
             try:
-                notification = db.query(SystemNotification).filter(
+                query: Query = db.query(SystemNotification).filter(
                     and_(
                         SystemNotification.id == notification_id,
                         or_(
@@ -306,7 +322,8 @@ class SecurityService:
                             SystemNotification.recipient_id.is_(None)
                         )
                     )
-                ).first()
+                )
+                notification = query.first() if query is not None else None
                 
                 if notification:
                     notification.is_read = True
@@ -326,36 +343,40 @@ class SecurityService:
     def get_security_metrics(self) -> Dict[str, Any]:
         """Get security-related metrics"""
         try:
-            db = SessionLocal()
+            db: Session = SessionLocal()
             try:
                 today = datetime.utcnow().date()
                 week_ago = datetime.utcnow() - timedelta(days=7)
                 
                 # Login attempts today
-                login_attempts_today = db.query(LoginAttempt).filter(
+                login_query: Query = db.query(LoginAttempt).filter(
                     func.date(LoginAttempt.attempted_at) == today
-                ).count()
+                )
+                login_attempts_today = login_query.count() if login_query is not None else 0
                 
                 # Failed logins today
-                failed_logins_today = db.query(LoginAttempt).filter(
+                failed_query: Query = db.query(LoginAttempt).filter(
                     and_(
                         func.date(LoginAttempt.attempted_at) == today,
                         LoginAttempt.success == False
                     )
-                ).count()
+                )
+                failed_logins_today = failed_query.count() if failed_query is not None else 0
                 
                 # Active sessions
-                active_sessions = db.query(UserSession).filter(
+                active_query: Query = db.query(UserSession).filter(
                     and_(
                         UserSession.is_active == True,
                         UserSession.expires_at > datetime.utcnow()
                     )
-                ).count()
+                )
+                active_sessions = active_query.count() if active_query is not None else 0
                 
                 # Audit events this week
-                audit_events_week = db.query(AuditLog).filter(
+                audit_query: Query = db.query(AuditLog).filter(
                     AuditLog.timestamp > week_ago
-                ).count()
+                )
+                audit_events_week = audit_query.count() if audit_query is not None else 0
                 
                 return {
                     "login_attempts_today": login_attempts_today,

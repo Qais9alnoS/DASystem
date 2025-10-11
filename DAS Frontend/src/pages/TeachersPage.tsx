@@ -1,14 +1,58 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, Users, FileText, Filter, BookOpen } from 'lucide-react';
+import { Search, Plus, Users, FileText, Filter, BookOpen, Loader2 } from 'lucide-react';
 import { TeacherRegistrationForm, TeachersList } from '@/components/teachers';
+import { teachersApi } from '@/services/api';
+import { Teacher } from '@/types/school';
 
 const TeachersPage = () => {
     const [activeTab, setActiveTab] = useState('list');
     const [searchQuery, setSearchQuery] = useState('');
+    const [teachers, setTeachers] = useState<Teacher[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { toast } = useToast();
+
+    // Fetch teachers statistics
+    useEffect(() => {
+        const fetchTeachers = async () => {
+            try {
+                setLoading(true);
+                const response = await teachersApi.getAll();
+                
+                if (response.success && response.data) {
+                    setTeachers(response.data);
+                }
+            } catch (error) {
+                toast({
+                    title: "خطأ",
+                    description: "فشل في تحميل بيانات المعلمين",
+                    variant: "destructive"
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchTeachers();
+    }, [toast]);
+
+    // Calculate statistics from real data
+    const totalTeachers = teachers.length;
+    const activeTeachers = teachers.filter(t => t.is_active).length;
+    const busUsers = teachers.filter(t => t.transportation_type && t.transportation_type !== 'walking').length;
+    const walkingUsers = teachers.filter(t => t.transportation_type === 'walking').length;
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -40,7 +84,7 @@ const TeachersPage = () => {
                                 <p className="text-sm font-medium text-muted-foreground">
                                     إجمالي المعلمين
                                 </p>
-                                <p className="text-2xl font-bold">87</p>
+                                <p className="text-2xl font-bold">{totalTeachers}</p>
                                 <p className="text-xs text-muted-foreground">
                                     معلم مسجل في النظام
                                 </p>
@@ -59,7 +103,7 @@ const TeachersPage = () => {
                                 <p className="text-sm font-medium text-muted-foreground">
                                     المعلمين النشطين
                                 </p>
-                                <p className="text-2xl font-bold">82</p>
+                                <p className="text-2xl font-bold">{activeTeachers}</p>
                                 <p className="text-xs text-muted-foreground">
                                     معلم نشط حالياً
                                 </p>
@@ -76,15 +120,15 @@ const TeachersPage = () => {
                         <div className="flex items-center justify-between">
                             <div className="space-y-2">
                                 <p className="text-sm font-medium text-muted-foreground">
-                                    الفترة الصباحية
+                                    مستخدمو النقل
                                 </p>
-                                <p className="text-2xl font-bold">48</p>
+                                <p className="text-2xl font-bold">{busUsers}</p>
                                 <p className="text-xs text-muted-foreground">
-                                    معلم في الفترة الصباحية
+                                    معلم يستخدم النقل
                                 </p>
                             </div>
                             <div className="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900/20">
-                                <span className="text-lg">☀️</span>
+                                <span className="text-lg">🚌</span>
                             </div>
                         </div>
                     </CardContent>
@@ -95,15 +139,15 @@ const TeachersPage = () => {
                         <div className="flex items-center justify-between">
                             <div className="space-y-2">
                                 <p className="text-sm font-medium text-muted-foreground">
-                                    الفترة المسائية
+                                    المشي
                                 </p>
-                                <p className="text-2xl font-bold">39</p>
+                                <p className="text-2xl font-bold">{walkingUsers}</p>
                                 <p className="text-xs text-muted-foreground">
-                                    معلم في الفترة المسائية
+                                    معلم يمشي إلى المدرسة
                                 </p>
                             </div>
                             <div className="p-3 rounded-full bg-purple-100 dark:bg-purple-900/20">
-                                <span className="text-lg">🌙</span>
+                                <span className="text-lg">🚶</span>
                             </div>
                         </div>
                     </CardContent>

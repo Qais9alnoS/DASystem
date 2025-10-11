@@ -161,3 +161,45 @@ async def create_subject(
     db.refresh(new_subject)
     
     return new_subject
+
+@router.put("/subjects/{subject_id}", response_model=SubjectResponse)
+async def update_subject(
+    subject_id: int,
+    subject_data: SubjectCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update subject"""
+    subject = db.query(Subject).filter(Subject.id == subject_id).first()
+    if not subject:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Subject not found"
+        )
+    
+    for field, value in subject_data.dict(exclude_unset=True).items():
+        setattr(subject, field, value)
+    
+    db.commit()
+    db.refresh(subject)
+    
+    return subject
+
+@router.delete("/subjects/{subject_id}")
+async def delete_subject(
+    subject_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Delete subject"""
+    subject = db.query(Subject).filter(Subject.id == subject_id).first()
+    if not subject:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Subject not found"
+        )
+    
+    db.delete(subject)
+    db.commit()
+    
+    return {"message": "Subject deleted successfully"}

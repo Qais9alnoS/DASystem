@@ -88,21 +88,35 @@ export function TreasurySystemPage() {
                     setTransactions(transactionsResponse.data);
                 }
 
-                // For treasury stats, we'll use mock data for now since the API doesn't seem to have a specific endpoint
-                // In a real implementation, this would come from a dashboard API endpoint
-                const mockStats: TreasuryStats = {
-                    total_income: 61550000,
-                    total_expenses: 37800000,
-                    net_balance: 23750000,
-                    monthly_income: 8500000,
-                    monthly_expenses: 5200000,
-                    top_categories: [
-                        { name: 'رسوم الطلاب', amount: 50250000, type: 'income' },
-                        { name: 'رواتب المعلمين', amount: 22500000, type: 'expense' },
-                        { name: 'رسوم النقل', amount: 9000000, type: 'income' }
-                    ]
-                };
-                setTreasuryStats(mockStats);
+                // Fetch treasury stats from dashboard API
+                const dashboardResponse = await financeApi.getDashboard(1); // Using academic year 1 as default
+                if (dashboardResponse.success && dashboardResponse.data) {
+                    // Transform dashboard data to TreasuryStats format
+                    const stats: TreasuryStats = {
+                        total_income: dashboardResponse.data.total_income || 0,
+                        total_expenses: dashboardResponse.data.total_expenses || 0,
+                        net_balance: dashboardResponse.data.net_balance || 0,
+                        monthly_income: dashboardResponse.data.monthly_income || 0,
+                        monthly_expenses: dashboardResponse.data.monthly_expenses || 0,
+                        top_categories: dashboardResponse.data.top_categories || []
+                    };
+                    setTreasuryStats(stats);
+                } else {
+                    // Fallback to mock data if dashboard API fails
+                    const mockStats: TreasuryStats = {
+                        total_income: 61550000,
+                        total_expenses: 37800000,
+                        net_balance: 23750000,
+                        monthly_income: 8500000,
+                        monthly_expenses: 5200000,
+                        top_categories: [
+                            { name: 'رسوم الطلاب', amount: 50250000, type: 'income' },
+                            { name: 'رواتب المعلمين', amount: 22500000, type: 'expense' },
+                            { name: 'رسوم النقل', amount: 9000000, type: 'income' }
+                        ]
+                    };
+                    setTreasuryStats(mockStats);
+                }
             } catch (error) {
                 console.error('Error fetching data:', error);
                 toast({
@@ -150,8 +164,7 @@ export function TreasurySystemPage() {
                 category_name: categoryForm.category_name,
                 category_type: categoryForm.category_type,
                 is_default: false,
-                is_active: true,
-                description: categoryForm.description
+                is_active: true
             });
 
             if (response.success && response.data) {

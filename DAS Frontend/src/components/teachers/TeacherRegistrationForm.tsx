@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { teachersApi } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
+import { Teacher } from '@/types/school';
 
 // Teacher Registration Schema
 const teacherSchema = z.object({
@@ -151,11 +152,25 @@ export const TeacherRegistrationForm: React.FC<TeacherRegistrationFormProps> = (
             // Call the real API to create/update teacher
             let response;
             if (mode === 'create') {
-                response = await teachersApi.create({
-                    ...data,
+                // Create a properly typed object for the API call
+                const teacherData = {
                     academic_year_id: 1, // This should be dynamically set based on current academic year
-                    is_active: true
-                });
+                    is_active: true,
+                    full_name: data.full_name,
+                    gender: data.gender,
+                    birth_date: data.birth_date || undefined,
+                    nationality: data.nationality || undefined,
+                    phone: data.phone || undefined,
+                    detailed_address: data.detailed_address || undefined,
+                    transportation_type: data.transportation_type || undefined,
+                    qualifications: data.qualifications,
+                    experience: data.experience || undefined,
+                    free_time_slots: data.free_time_slots || undefined,
+                    notes: data.notes || undefined
+                };
+                
+                // Type assertion to ensure TypeScript knows all required fields are present
+                response = await teachersApi.create(teacherData as Omit<Teacher, 'id' | 'created_at' | 'updated_at'>);
             } else {
                 // For edit mode, we would need an ID
                 // response = await teachersApi.update(teacherId, data);

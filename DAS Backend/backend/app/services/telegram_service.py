@@ -69,7 +69,7 @@ class TelegramNotificationService:
             logger.error(f"Failed to send Telegram message: {e}")
             return {"success": False, "error": str(e)}
     
-    async def send_authentication_alert(self, username: str, role: str, ip_address: str = None, 
+    async def send_authentication_alert(self, username: str, role: str, ip_address: Optional[str] = None, 
                                       success: bool = True) -> Dict[str, Any]:
         """Send authentication notification"""
         if success:
@@ -103,7 +103,7 @@ class TelegramNotificationService:
         return await self.send_message(message, MessageType.SECURITY)
     
     async def send_backup_notification(self, backup_type: str, backup_name: str, 
-                                     success: bool = True, error_msg: str = None) -> Dict[str, Any]:
+                                     success: bool = True, error_msg: Optional[str] = None) -> Dict[str, Any]:
         """Send backup notification"""
         if success:
             message = f"<b>💾 نسخة احتياطية ناجحة</b>\n\n"
@@ -265,7 +265,7 @@ class TelegramNotificationService:
 telegram_service = TelegramNotificationService()
 
 # Convenience functions for common notifications
-async def notify_login(username: str, role: str, ip_address: str = None, success: bool = True):
+async def notify_login(username: str, role: str, ip_address: Optional[str] = None, success: bool = True):
     """Quick login notification"""
     return await telegram_service.send_authentication_alert(username, role, ip_address, success)
 
@@ -273,7 +273,7 @@ async def notify_password_reset(username: str, role: str, new_password: str):
     """Quick password reset notification"""
     return await telegram_service.send_password_reset_notification(username, role, new_password)
 
-async def notify_backup(backup_type: str, backup_name: str, success: bool = True, error_msg: str = None):
+async def notify_backup(backup_type: str, backup_name: str, success: bool = True, error_msg: Optional[str] = None):
     """Quick backup notification"""
     return await telegram_service.send_backup_notification(backup_type, backup_name, success, error_msg)
 

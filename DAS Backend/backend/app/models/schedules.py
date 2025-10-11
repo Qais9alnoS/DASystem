@@ -1,24 +1,33 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, Date, Numeric, ForeignKey, JSON, Time
+from sqlalchemy import Column, Integer, String, Text, Boolean, Date, Numeric, ForeignKey, JSON, Time, DateTime
 from sqlalchemy.orm import relationship
 from app.models.base import BaseModel
 
 class TimeSlot(BaseModel):
     __tablename__ = "time_slots"
     
+    # Time slot attributes
+    schedule_id = Column(Integer, ForeignKey("schedules.id"), nullable=False)
     period_number = Column(Integer, nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
-    session_type = Column(String(10), nullable=False)  # morning, evening
+    day_of_week = Column(Integer, nullable=False)  # 1-7 (Monday-Sunday)
     is_break = Column(Boolean, default=False)
+    break_name = Column(String(50))
+    
+    # Relationships
+    schedule = relationship("Schedule", back_populates="time_slots")
     
 class ScheduleAssignment(BaseModel):
     __tablename__ = "schedule_assignments"
     
+    # Schedule assignment attributes
     schedule_id = Column(Integer, ForeignKey("schedules.id"), nullable=False)
     time_slot_id = Column(Integer, ForeignKey("time_slots.id"), nullable=False)
     teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=False)
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False)
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
+    room = Column(String(50))
+    notes = Column(Text)
     
     # Relationships
     schedule = relationship("Schedule")
@@ -30,18 +39,23 @@ class ScheduleAssignment(BaseModel):
 class ScheduleConflict(BaseModel):
     __tablename__ = "schedule_conflicts"
     
-    schedule_assignment_id = Column(Integer, ForeignKey("schedule_assignments.id"), nullable=False)
+    # Schedule conflict attributes
+    schedule_id = Column(Integer, ForeignKey("schedules.id"), nullable=False)
     conflict_type = Column(String(50), nullable=False)  # teacher_overlap, room_overlap, etc.
     description = Column(Text)
     severity = Column(String(20), default="medium")  # low, medium, high, critical
+    affected_assignments = Column(Text)  # JSON format for assignment IDs
+    resolution_suggestions = Column(Text)  # JSON format for suggestions
     is_resolved = Column(Boolean, default=False)
+    resolved_at = Column(DateTime(timezone=True))
     
     # Relationships
-    schedule_assignment = relationship("ScheduleAssignment")
+    schedule = relationship("Schedule")
 
 class Schedule(BaseModel):
     __tablename__ = "schedules"
     
+    # Schedule attributes
     academic_year_id = Column(Integer, ForeignKey("academic_years.id"), nullable=False)
     session_type = Column(String(10), nullable=False)  # morning, evening
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
@@ -50,16 +64,23 @@ class Schedule(BaseModel):
     period_number = Column(Integer)
     subject_id = Column(Integer, ForeignKey("subjects.id"), nullable=False)
     teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=False)
+    name = Column(String(100))
+    start_date = Column(Date)
+    end_date = Column(Date)
+    is_active = Column(Boolean, default=True)
+    description = Column(Text)
     
     # Relationships
     academic_year = relationship("AcademicYear")
     class_rel = relationship("Class", back_populates="schedules")
     subject = relationship("Subject")
     teacher = relationship("Teacher")
+    time_slots = relationship("TimeSlot", back_populates="schedule")
 
 class ScheduleConstraint(BaseModel):
     __tablename__ = "schedule_constraints"
     
+    # Schedule constraint attributes
     academic_year_id = Column(Integer, ForeignKey("academic_years.id"), nullable=False)
     constraint_type = Column(String(20), nullable=False)  # forbidden, required, no_consecutive, max_consecutive, min_consecutive
     
@@ -96,6 +117,7 @@ class ScheduleConstraint(BaseModel):
 class ConstraintTemplate(BaseModel):
     __tablename__ = "constraint_templates"
     
+    # Constraint template attributes
     template_name = Column(String(100), nullable=False)
     template_description = Column(Text)
     constraint_config = Column(JSON)  # Stores constraint configuration
@@ -104,6 +126,7 @@ class ConstraintTemplate(BaseModel):
 class ScheduleGenerationHistory(BaseModel):
     __tablename__ = "schedule_generation_history"
     
+    # Schedule generation history attributes
     academic_year_id = Column(Integer, ForeignKey("academic_years.id"), nullable=False)
     session_type = Column(String(10), nullable=False)  # morning, evening
     generation_algorithm = Column(String(50))  # 'genetic', 'backtrack', 'greedy'

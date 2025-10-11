@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import {
     UserCheck,
@@ -24,32 +24,16 @@ import {
     AlertTriangle,
     FileText,
     TrendingUp,
-    Users
+    Users,
+    Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { teachersApi, academicYearsApi } from '@/services/api';
+import { Teacher, TeacherAttendance } from '@/types/school';
 
-interface Teacher {
-    id: number;
-    name: string;
-    subject: string;
-    phone: string;
-    session_type: 'morning' | 'evening' | 'both';
-    status: 'active' | 'inactive';
-}
-
-interface AttendanceRecord {
-    id: number;
-    teacher_id: number;
-    date: string;
-    status: 'present' | 'absent' | 'late' | 'excused';
-    check_in_time?: string;
-    check_out_time?: string;
-    notes?: string;
-    session_type: 'morning' | 'evening';
-    extra_work_hours?: number;
-    extra_work_description?: string;
-    created_at: string;
+interface AttendanceRecord extends TeacherAttendance {
+    teacher_name?: string;
 }
 
 interface ExtraWork {
@@ -67,6 +51,7 @@ interface ExtraWork {
 }
 
 const TeacherAttendancePage: React.FC = () => {
+    const { toast } = useToast();
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
     const [extraWork, setExtraWork] = useState<ExtraWork[]>([]);
@@ -76,62 +61,86 @@ const TeacherAttendancePage: React.FC = () => {
     const [showExtraWorkDialog, setShowExtraWorkDialog] = useState(false);
     const [attendanceForm, setAttendanceForm] = useState<Partial<AttendanceRecord>>({});
     const [extraWorkForm, setExtraWorkForm] = useState<Partial<ExtraWork>>({});
-
-    // Mock data
-    const mockTeachers: Teacher[] = [
-        { id: 1, name: 'أحمد محمد علي', subject: 'الرياضيات', phone: '07901234567', session_type: 'both', status: 'active' },
-        { id: 2, name: 'فاطمة حسن', subject: 'اللغة العربية', phone: '07901234568', session_type: 'morning', status: 'active' },
-        { id: 3, name: 'علي أحمد', subject: 'العلوم', phone: '07901234569', session_type: 'evening', status: 'active' },
-        { id: 4, name: 'مريم محمود', subject: 'التاريخ', phone: '07901234570', session_type: 'both', status: 'active' }
-    ];
-
-    const mockAttendance: AttendanceRecord[] = [
-        {
-            id: 1,
-            teacher_id: 1,
-            date: format(new Date(), 'yyyy-MM-dd'),
-            status: 'present',
-            check_in_time: '08:00',
-            check_out_time: '14:30',
-            session_type: 'morning',
-            extra_work_hours: 2,
-            extra_work_description: 'إشراف على النشاط الصباحي',
-            created_at: new Date().toISOString()
-        },
-        {
-            id: 2,
-            teacher_id: 2,
-            date: format(new Date(), 'yyyy-MM-dd'),
-            status: 'late',
-            check_in_time: '08:15',
-            check_out_time: '14:30',
-            session_type: 'morning',
-            notes: 'تأخير بسبب ظروف المرور',
-            created_at: new Date().toISOString()
-        }
-    ];
-
-    const mockExtraWork: ExtraWork[] = [
-        {
-            id: 1,
-            teacher_id: 1,
-            date: format(new Date(), 'yyyy-MM-dd'),
-            hours: 2,
-            description: 'إشراف على النشاط الصباحي',
-            type: 'supervision',
-            approved: true,
-            approved_by: 'مدير المدرسة',
-            rate_per_hour: 10000,
-            total_amount: 20000,
-            created_at: new Date().toISOString()
-        }
-    ];
+    const [loading, setLoading] = useState(true);
+    const [academicYears, setAcademicYears] = useState<any[]>([]);
+    const [selectedAcademicYear, setSelectedAcademicYear] = useState<number | null>(null);
 
     useEffect(() => {
-        setTeachers(mockTeachers);
-        setAttendanceRecords(mockAttendance);
-        setExtraWork(mockExtraWork);
-    }, []);
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                // Fetch academic years
+                const yearsResponse = await academicYearsApi.getAll();
+                if (yearsResponse.success && yearsResponse.data) {
+                    setAcademicYears(yearsResponse.data);
+                    // Set default to the first active academic year
+                    const activeYear = yearsResponse.data.find((year: any) => year.is_active) || yearsResponse.data[0];
+                    if (activeYear) {
+                        setSelectedAcademicYear(activeYear.id || null);
+                    }
+                }
+
+                // Fetch teachers
+                const teachersResponse = await teachersApi.getAll({ academic_year_id: selectedAcademicYear || undefined });
+                if (teachersResponse.success && teachersResponse.data) {
+                    setTeachers(teachersResponse.data);
+                }
+
+                // Fetch attendance records for the selected date
+                await fetchAttendanceRecords();
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                toast({
+                    title: "خطأ",
+                    description: "فشل في تحميل البيانات",
+                    variant: "destructive"
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [selectedAcademicYear]);
+
+    const fetchAttendanceRecords = async () => {
+        if (!selectedAcademicYear) return;
+        
+        try {
+            // For now, we'll fetch attendance for all teachers for the selected month
+            // In a real implementation, you might want to filter by date
+            const month = selectedDate.getMonth() + 1;
+            const year = selectedDate.getFullYear();
+            
+            // We'll need to fetch attendance for each teacher individually
+            const allAttendance: AttendanceRecord[] = [];
+            
+            for (const teacher of teachers) {
+                try {
+                    const response = await teachersApi.getAttendance(teacher.id!, month, year);
+                    if (response.success && response.data) {
+                        // Add teacher name to each attendance record
+                        const recordsWithNames = response.data.map(record => ({
+                            ...record,
+                            teacher_name: teacher.full_name
+                        }));
+                        allAttendance.push(...recordsWithNames);
+                    }
+                } catch (error) {
+                    console.error(`Error fetching attendance for teacher ${teacher.id}:`, error);
+                }
+            }
+            
+            setAttendanceRecords(allAttendance);
+        } catch (error) {
+            console.error('Error fetching attendance records:', error);
+            toast({
+                title: "خطأ",
+                description: "فشل في تحميل سجل الحضور",
+                variant: "destructive"
+            });
+        }
+    };
 
     const getStatusIcon = (status: string) => {
         switch (status) {
@@ -163,7 +172,7 @@ const TeacherAttendancePage: React.FC = () => {
         }
     };
 
-    const recordAttendance = () => {
+    const recordAttendance = async () => {
         if (!attendanceForm.teacher_id || !attendanceForm.status) {
             toast({
                 title: "خطأ",
@@ -173,36 +182,64 @@ const TeacherAttendancePage: React.FC = () => {
             return;
         }
 
-        const newAttendance: AttendanceRecord = {
-            id: Date.now(),
-            date: format(selectedDate, 'yyyy-MM-dd'),
-            created_at: new Date().toISOString(),
-            ...attendanceForm as AttendanceRecord
-        };
+        try {
+            // Prepare attendance data
+            const attendanceData = {
+                attendance_date: format(selectedDate, 'yyyy-MM-dd'),
+                session_type: attendanceForm.session_type || 'morning',
+                status: attendanceForm.status || 'absent',
+                classes_attended: attendanceForm.classes_attended || 0,
+                extra_classes: attendanceForm.extra_classes || 0,
+                total_hours_worked: attendanceForm.total_hours_worked || 0,
+                notes: attendanceForm.notes || '',
+            };
 
-        setAttendanceRecords([...attendanceRecords, newAttendance]);
-        setAttendanceForm({});
-        setShowAttendanceDialog(false);
+            const response = await teachersApi.recordAttendance(
+                attendanceForm.teacher_id!,
+                attendanceData
+            );
 
-        toast({
-            title: "تم تسجيل الحضور",
-            description: "تم تسجيل حضور المدرس بنجاح"
-        });
+            if (response.success && response.data) {
+                // Add the new attendance record to the state
+                const teacher = teachers.find(t => t.id === attendanceForm.teacher_id);
+                const newAttendance: AttendanceRecord = {
+                    ...response.data,
+                    teacher_name: teacher?.full_name
+                };
+                
+                setAttendanceRecords([...attendanceRecords, newAttendance]);
+                setAttendanceForm({});
+                setShowAttendanceDialog(false);
+
+                toast({
+                    title: "تم تسجيل الحضور",
+                    description: "تم تسجيل حضور المدرس بنجاح"
+                });
+            } else {
+                throw new Error(response.message || 'فشل في تسجيل الحضور');
+            }
+        } catch (error) {
+            toast({
+                title: "خطأ",
+                description: error instanceof Error ? error.message : "حدث خطأ أثناء تسجيل الحضور",
+                variant: "destructive"
+            });
+        }
     };
 
     const getTodayAttendance = () => {
         const today = format(selectedDate, 'yyyy-MM-dd');
-        return attendanceRecords.filter(record => record.date === today);
+        return attendanceRecords.filter(record => record.attendance_date === today);
     };
 
     const getTeacherName = (teacherId: number) => {
         const teacher = teachers.find(t => t.id === teacherId);
-        return teacher?.name || 'غير محدد';
+        return teacher?.full_name || 'غير محدد';
     };
 
     const getAttendanceStats = () => {
         const today = format(selectedDate, 'yyyy-MM-dd');
-        const todayRecords = attendanceRecords.filter(record => record.date === today);
+        const todayRecords = attendanceRecords.filter(record => record.attendance_date === today);
 
         return {
             total: teachers.length,
@@ -215,6 +252,14 @@ const TeacherAttendancePage: React.FC = () => {
 
     const stats = getAttendanceStats();
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col h-full">
             <div className="flex justify-between items-center mb-6">
@@ -223,6 +268,21 @@ const TeacherAttendancePage: React.FC = () => {
                     <p className="text-muted-foreground mt-2">تتبع حضور المدرسين والأعمال الإضافية</p>
                 </div>
                 <div className="flex space-x-2 rtl:space-x-reverse">
+                    <Select 
+                        value={selectedAcademicYear?.toString() || ''} 
+                        onValueChange={(value) => setSelectedAcademicYear(parseInt(value))}
+                    >
+                        <SelectTrigger className="w-48">
+                            <SelectValue placeholder="اختر السنة الدراسية" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {academicYears.map(year => (
+                                <SelectItem key={year.id} value={year.id?.toString() || ''}>
+                                    {year.year_name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button variant="outline">
@@ -318,26 +378,24 @@ const TeacherAttendancePage: React.FC = () => {
                                 <CardContent className="p-4">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center space-x-4 rtl:space-x-reverse">
-                                            {getStatusIcon(record.status)}
+                                            {getStatusIcon(record.status || 'absent')}
                                             <div>
-                                                <h3 className="font-semibold">{getTeacherName(record.teacher_id)}</h3>
+                                                <h3 className="font-semibold">{record.teacher_name || getTeacherName(record.teacher_id)}</h3>
                                                 <p className="text-sm text-muted-foreground">
                                                     {record.session_type === 'morning' ? 'الجلسة الصباحية' : 'الجلسة المسائية'}
                                                 </p>
                                             </div>
                                         </div>
                                         <div className="flex items-center space-x-4 rtl:space-x-reverse">
-                                            <Badge className={cn('text-xs', getStatusColor(record.status))}>
-                                                {getStatusLabel(record.status)}
+                                            <Badge className={cn('text-xs', getStatusColor(record.status || 'absent'))}>
+                                                {getStatusLabel(record.status || 'absent')}
                                             </Badge>
-                                            {record.check_in_time && (
+                                            <div className="text-sm text-muted-foreground">
+                                                حضور: {record.classes_attended || 0} حصص
+                                            </div>
+                                            {record.extra_classes && record.extra_classes > 0 && (
                                                 <div className="text-sm text-muted-foreground">
-                                                    دخول: {record.check_in_time}
-                                                </div>
-                                            )}
-                                            {record.check_out_time && (
-                                                <div className="text-sm text-muted-foreground">
-                                                    خروج: {record.check_out_time}
+                                                    إضافي: {record.extra_classes} حصص
                                                 </div>
                                             )}
                                         </div>
@@ -367,19 +425,19 @@ const TeacherAttendancePage: React.FC = () => {
                                     <div className="flex justify-between">
                                         <span>نسبة الحضور:</span>
                                         <span className="font-semibold">
-                                            {((stats.present / (stats.total || 1)) * 100).toFixed(1)}%
+                                            {stats.total > 0 ? ((stats.present / stats.total) * 100).toFixed(1) : '0.0'}%
                                         </span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>نسبة الغياب:</span>
                                         <span className="font-semibold text-red-600">
-                                            {((stats.absent / (stats.total || 1)) * 100).toFixed(1)}%
+                                            {stats.total > 0 ? ((stats.absent / stats.total) * 100).toFixed(1) : '0.0'}%
                                         </span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>نسبة التأخير:</span>
                                         <span className="font-semibold text-orange-600">
-                                            {((stats.late / (stats.total || 1)) * 100).toFixed(1)}%
+                                            {stats.total > 0 ? ((stats.late / stats.total) * 100).toFixed(1) : '0.0'}%
                                         </span>
                                     </div>
                                 </div>
@@ -410,8 +468,8 @@ const TeacherAttendancePage: React.FC = () => {
                                 </SelectTrigger>
                                 <SelectContent>
                                     {teachers.map((teacher) => (
-                                        <SelectItem key={teacher.id} value={teacher.id.toString()}>
-                                            {teacher.name} - {teacher.subject}
+                                        <SelectItem key={teacher.id} value={teacher.id!.toString()}>
+                                            {teacher.full_name}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -421,7 +479,7 @@ const TeacherAttendancePage: React.FC = () => {
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="session_type" className="text-right">الجلسة</Label>
                             <Select
-                                value={attendanceForm.session_type || ""}
+                                value={attendanceForm.session_type || "morning"}
                                 onValueChange={(value) => setAttendanceForm({
                                     ...attendanceForm,
                                     session_type: value as any
@@ -440,7 +498,7 @@ const TeacherAttendancePage: React.FC = () => {
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="status" className="text-right">الحالة</Label>
                             <Select
-                                value={attendanceForm.status || ""}
+                                value={attendanceForm.status || "absent"}
                                 onValueChange={(value) => setAttendanceForm({
                                     ...attendanceForm,
                                     status: value as any
@@ -459,14 +517,43 @@ const TeacherAttendancePage: React.FC = () => {
                         </div>
 
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="check_in_time" className="text-right">وقت الدخول</Label>
+                            <Label htmlFor="classes_attended" className="text-right">عدد الحصص</Label>
                             <Input
-                                id="check_in_time"
-                                type="time"
-                                value={attendanceForm.check_in_time || ''}
+                                id="classes_attended"
+                                type="number"
+                                value={attendanceForm.classes_attended || ''}
                                 onChange={(e) => setAttendanceForm({
                                     ...attendanceForm,
-                                    check_in_time: e.target.value
+                                    classes_attended: parseInt(e.target.value) || 0
+                                })}
+                                className="col-span-3"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="extra_classes" className="text-right">الحصص الإضافية</Label>
+                            <Input
+                                id="extra_classes"
+                                type="number"
+                                value={attendanceForm.extra_classes || ''}
+                                onChange={(e) => setAttendanceForm({
+                                    ...attendanceForm,
+                                    extra_classes: parseInt(e.target.value) || 0
+                                })}
+                                className="col-span-3"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="total_hours_worked" className="text-right">إجمالي الساعات</Label>
+                            <Input
+                                id="total_hours_worked"
+                                type="number"
+                                step="0.5"
+                                value={attendanceForm.total_hours_worked || ''}
+                                onChange={(e) => setAttendanceForm({
+                                    ...attendanceForm,
+                                    total_hours_worked: parseFloat(e.target.value) || 0
                                 })}
                                 className="col-span-3"
                             />

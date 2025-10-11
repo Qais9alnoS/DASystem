@@ -4,7 +4,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, GraduationCap, Users, DollarSign, Calendar, Trophy, FileText, BookOpen, BarChart3 } from 'lucide-react';
-import { directorApi } from '@/services/api';
+import { directorApi, activitiesApi, academicYearsApi } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 
 const DashboardPage = () => {
@@ -20,13 +20,26 @@ const DashboardPage = () => {
     active_activities: 0
   });
   
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<number | null>(null);
 
   // Fetch real dashboard stats
   useEffect(() => {
-    const fetchDashboardStats = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
+        
+        // Fetch academic years to get the active one
+        const yearsResponse = await academicYearsApi.getAll();
+        if (yearsResponse.success && yearsResponse.data) {
+          const activeYear = yearsResponse.data.find((year: any) => year.is_active) || yearsResponse.data[0];
+          if (activeYear) {
+            setSelectedAcademicYear(activeYear.id || null);
+          }
+        }
+        
+        // Fetch dashboard stats
         const response = await directorApi.getDashboardStats();
         if (response.success && response.data) {
           setStats({
@@ -36,11 +49,30 @@ const DashboardPage = () => {
             active_activities: response.data.active_activities || 0
           });
         }
+        
+        // Fetch recent activities
+        if (selectedAcademicYear) {
+          const activitiesResponse = await activitiesApi.getAll({
+            academic_year_id: selectedAcademicYear,
+            is_active: true,
+            limit: 5
+          });
+          
+          if (activitiesResponse.success && activitiesResponse.data) {
+            // Sort by creation date and take the most recent 3
+            const sortedActivities = activitiesResponse.data
+              .sort((a: any, b: any) => 
+                new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime()
+              )
+              .slice(0, 3);
+            setRecentActivities(sortedActivities);
+          }
+        }
       } catch (error: any) {
-        console.error('Error fetching dashboard stats:', error);
+        console.error('Error fetching dashboard data:', error);
         toast({
-          title: "خطأ في تحميل الإحصائيات",
-          description: error.message || "حدث خطأ أثناء تحميل إحصائيات لوحة التحكم",
+          title: "خطأ في تحميل البيانات",
+          description: error.message || "حدث خطأ أثناء تحميل بيانات لوحة التحكم",
           variant: "destructive"
         });
       } finally {
@@ -48,8 +80,8 @@ const DashboardPage = () => {
       }
     };
 
-    fetchDashboardStats();
-  }, []);
+    fetchData();
+  }, [selectedAcademicYear]);
 
   const formatCurrency = (amount: number) => {
     // Format as ليرة without using IQD currency code
@@ -204,53 +236,41 @@ const DashboardPage = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 border rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors">
-              <div className="flex items-center space-x-3 space-x-reverse">
-                <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-md">
-                  <GraduationCap className="h-5 w-5 text-primary" />
+            {recentActivities.length > 0 ? (
+              recentActivities.map((activity: any, index: number) => (
+                <div 
+                  key={index} 
+                  className="flex items-center justify-between p-4 border rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                  onClick={() => navigate(`/activities/${activity.id}`)}
+                >
+                  <div className="flex items-center space-x-3 space-x-reverse">
+                    <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-md">
+                      <Trophy className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-gray-900 dark:text-white">
+                        {activity.name}
+                      </h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {new Date(activity.created_at || activity.start_date).toLocaleDateString('ar-IQ')}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    {activity.activity_type === 'academic' && 'أكاديمي'}
+                    {activity.activity_type === 'sports' && 'رياضي'}
+                    {activity.activity_type === 'cultural' && 'ثقافي'}
+                    {activity.activity_type === 'social' && 'اجتماعي'}
+                    {activity.activity_type === 'trip' && 'رحلة'}
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white">
-                    تم تسجيل 15 طالباً جديداً
-                  </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    اليوم - 2:30 م
-                  </p>
-                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <Trophy className="h-12 w-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                <p>لا توجد أنشطة حديثة</p>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 border rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors">
-              <div className="flex items-center space-x-3 space-x-reverse">
-                <div className="p-2 bg-secondary/10 dark:bg-secondary/20 rounded-md">
-                  <DollarSign className="h-5 w-5 text-secondary" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white">
-                    تم تحصيل 85,000 ر.س
-                  </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    أمس - 4:15 م
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 border rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors">
-              <div className="flex items-center space-x-3 space-x-reverse">
-                <div className="p-2 bg-accent/10 dark:bg-accent/20 rounded-md">
-                  <Calendar className="h-5 w-5 text-accent" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white">
-                    تم إنشاء جدول جديد
-                  </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    أمس - 11:20 ص
-                  </p>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </CardContent>
       </Card>
