@@ -4,9 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useQuery } from '@tanstack/react-query';
 import { financeApi, studentsApi } from '@/services/api';
@@ -30,6 +29,9 @@ import {
     BarChart3 as BarChartIcon,
     Loader2
 } from 'lucide-react';
+import { IOSNavbar } from '@/components/ui/ios-navbar';
+import { IOSTabBar } from '@/components/ui/ios-tabbar';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 
 interface FinanceStats {
     totalRevenue: number;
@@ -59,6 +61,8 @@ export const FinancialDashboardPage: React.FC = () => {
     const [selectedPeriod, setSelectedPeriod] = useState('current_month');
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('all');
+    const [activeTab, setActiveTab] = useState('dashboard');
+    const [iosActiveTab, setIosActiveTab] = useState("finance");
 
     // Fetch financial dashboard data
     const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useQuery({
@@ -135,13 +139,13 @@ export const FinancialDashboardPage: React.FC = () => {
     const getPaymentStatusBadge = (status: string) => {
         switch (status) {
             case 'paid':
-                return <Badge className="bg-green-100 text-green-800">مكتمل</Badge>;
+                return <Badge className="bg-green-100 text-green-800 rounded-full">مكتمل</Badge>;
             case 'partial':
-                return <Badge className="bg-yellow-100 text-yellow-800">جزئي</Badge>;
+                return <Badge className="bg-yellow-100 text-yellow-800 rounded-full">جزئي</Badge>;
             case 'pending':
-                return <Badge className="bg-red-100 text-red-800">معلق</Badge>;
+                return <Badge className="bg-red-100 text-red-800 rounded-full">معلق</Badge>;
             default:
-                return <Badge variant="secondary">غير محدد</Badge>;
+                return <Badge variant="secondary" className="rounded-full">غير محدد</Badge>;
         }
     };
 
@@ -180,239 +184,255 @@ export const FinancialDashboardPage: React.FC = () => {
     }
 
     return (
-        <div className="p-6 space-y-6 max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold">الإدارة المالية</h1>
-                    <p className="text-muted-foreground">
-                        متابعة الإيرادات والمصروفات والرسوم الدراسية
-                    </p>
+        <div className="min-h-screen bg-background">
+            {/* iOS Navigation Bar */}
+            <IOSNavbar 
+                title="الإدارة المالية" 
+                largeTitle={true}
+            />
+            
+            <div className="p-4 pb-24">
+                {/* Segmented Control for Tabs */}
+                <div className="mb-6">
+                    <SegmentedControl
+                        options={[
+                            { value: "dashboard", label: "نظرة عامة" },
+                            { value: "transactions", label: "المعاملات" },
+                            { value: "students", label: "الطلاب" },
+                            { value: "reports", label: "التقارير" }
+                        ]}
+                        value={activeTab}
+                        onValueChange={setActiveTab}
+                    />
                 </div>
-                <div className="flex gap-2">
-                    <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                        <SelectTrigger className="w-40">
-                            <SelectValue placeholder="اختر الفترة" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="current_month">الشهر الحالي</SelectItem>
-                            <SelectItem value="last_month">الشهر الماضي</SelectItem>
-                            <SelectItem value="current_year">السنة الحالية</SelectItem>
-                            <SelectItem value="last_year">السنة الماضية</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button>
-                        <Plus className="h-4 w-4 ml-2" />
-                        معاملة جديدة
-                    </Button>
-                </div>
-            </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">إجمالي الإيرادات</CardTitle>
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
-                        <p className="text-xs text-muted-foreground flex items-center">
-                            <TrendingUp className="h-3 w-3 ml-1 text-green-500" />
-                            12.5% من الشهر الماضي
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">إجمالي المصروفات</CardTitle>
-                        <CreditCard className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(stats.totalExpenses)}</div>
-                        <p className="text-xs text-muted-foreground flex items-center">
-                            <TrendingDown className="h-3 w-3 ml-1 text-red-500" />
-                            5.2% من الشهر الماضي
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">صافي الدخل</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{formatCurrency(stats.netIncome)}</div>
-                        <p className="text-xs text-muted-foreground">
-                            {stats.netIncome > 0 ? 'ربح' : 'خسارة'}
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">معدل التحصيل</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.collectionRate}%</div>
-                        <p className="text-xs text-muted-foreground">
-                            {stats.studentsWithDues} طالب متبقي عليهم
-                        </p>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Charts and Reports */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle>الإيرادات والمصروفات الشهرية</CardTitle>
-                        <CardDescription>
-                            مقارنة الإيرادات والمصروفات على مدار الأشهر
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="h-80 flex items-center justify-center">
-                            <div className="text-center text-muted-foreground">
-                                <BarChartIcon className="h-12 w-12 mx-auto mb-2" />
-                                <p>مخطط الإيرادات والمصروفات - سيتم إضافته لاحقاً</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>الطلاب المتأخرين في الدفع</CardTitle>
-                        <CardDescription>
-                            قائمة بالطلاب المتأخرين في سداد الرسوم
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            {studentPayments.slice(0, 5).map((student) => (
-                                <div key={student.id} className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium">{student.student_name}</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {student.grade} - {student.section}
-                                        </p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm font-medium text-red-600">
-                                            {formatCurrency(student.remaining_amount)}
-                                        </p>
-                                        {getPaymentStatusBadge(student.payment_status)}
-                                    </div>
-                                </div>
-                            ))}
-                            {studentPayments.length === 0 && (
-                                <div className="text-center py-8 text-muted-foreground">
-                                    <Receipt className="h-8 w-8 mx-auto mb-2" />
-                                    <p>لا توجد بيانات عن تأخر في الدفع</p>
-                                </div>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Transactions Table */}
-            <Card>
-                <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <CardTitle>آخر المعاملات المالية</CardTitle>
-                            <CardDescription>
-                                قائمة بأحدث الإيرادات والمصروفات
-                            </CardDescription>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                            <div className="relative">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="البحث في المعاملات..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10 w-full md:w-64"
-                                />
-                            </div>
-                            <Select value={filterType} onValueChange={setFilterType}>
-                                <SelectTrigger className="w-full md:w-32">
-                                    <SelectValue placeholder="النوع" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">الكل</SelectItem>
-                                    <SelectItem value="income">الإيرادات</SelectItem>
-                                    <SelectItem value="expense">المصروفات</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Button variant="outline">
-                                <Download className="h-4 w-4 ml-2" />
-                                تصدير
-                            </Button>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>التاريخ</TableHead>
-                                <TableHead>الوصف</TableHead>
-                                <TableHead>التصنيف</TableHead>
-                                <TableHead>المرجع</TableHead>
-                                <TableHead className="text-right">المبلغ</TableHead>
-                                <TableHead className="text-center">الإجراء</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredTransactions.map((transaction) => (
-                                <TableRow key={transaction.id}>
-                                    <TableCell>
-                                        <div className="flex items-center">
-                                            <Calendar className="h-4 w-4 ml-2 text-muted-foreground" />
-                                            {new Date(transaction.transaction_date).toLocaleDateString('ar-IQ')}
+                {activeTab === "dashboard" && (
+                    <div className="space-y-6">
+                        {/* Financial Stats Cards */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <Card className="rounded-3xl border-0 shadow-ios">
+                                <CardContent className="p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-medium text-muted-foreground">الإيرادات</p>
+                                            <p className="text-xl font-bold text-green-600">
+                                                {formatCurrency(stats.totalRevenue)}
+                                            </p>
                                         </div>
-                                    </TableCell>
-                                    <TableCell className="font-medium">{transaction.description}</TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline">{getCategoryName(transaction.category_id)}</Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        {transaction.reference_type && (
-                                            <div className="flex items-center">
-                                                <Users className="h-4 w-4 ml-2 text-muted-foreground" />
-                                                {transaction.reference_type}
-                                            </div>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className={`text-right font-medium ${transaction.transaction_type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                                        {transaction.transaction_type === 'income' ? '+' : '-'}
-                                        {formatCurrency(transaction.amount)}
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <Button variant="ghost" size="sm">
-                                            <Eye className="h-4 w-4" />
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {filteredTransactions.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                                        <Receipt className="h-8 w-8 mx-auto mb-2" />
-                                        <p>لا توجد معاملات مالية</p>
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                                        <div className="p-2 rounded-full bg-green-100">
+                                            <TrendingUp className="h-5 w-5 text-green-600" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="rounded-3xl border-0 shadow-ios">
+                                <CardContent className="p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-medium text-muted-foreground">المصروفات</p>
+                                            <p className="text-xl font-bold text-red-600">
+                                                {formatCurrency(stats.totalExpenses)}
+                                            </p>
+                                        </div>
+                                        <div className="p-2 rounded-full bg-red-100">
+                                            <TrendingDown className="h-5 w-5 text-red-600" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="rounded-3xl border-0 shadow-ios">
+                                <CardContent className="p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-medium text-muted-foreground">الصافي</p>
+                                            <p className="text-xl font-bold text-blue-600">
+                                                {formatCurrency(stats.netIncome)}
+                                            </p>
+                                        </div>
+                                        <div className="p-2 rounded-full bg-blue-100">
+                                            <DollarSign className="h-5 w-5 text-blue-600" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="rounded-3xl border-0 shadow-ios">
+                                <CardContent className="p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-medium text-muted-foreground">معدل التحصيل</p>
+                                            <p className="text-xl font-bold">{stats.collectionRate}%</p>
+                                        </div>
+                                        <div className="p-2 rounded-full bg-purple-100">
+                                            <BarChartIcon className="h-5 w-5 text-purple-600" />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Recent Transactions */}
+                        <Card className="rounded-3xl border-0 shadow-ios">
+                            <CardHeader className="p-4">
+                                <CardTitle className="text-lg">أحدث المعاملات</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>الوصف</TableHead>
+                                            <TableHead>المبلغ</TableHead>
+                                            <TableHead>النوع</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {transactions.slice(0, 5).map((transaction) => (
+                                            <TableRow key={transaction.id}>
+                                                <TableCell className="font-medium">
+                                                    {transaction.description}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className={transaction.transaction_type === 'income' ? 'text-green-600' : 'text-red-600'}>
+                                                        {transaction.transaction_type === 'income' ? '+' : '-'}
+                                                        {formatCurrency(Math.abs(transaction.amount))}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={transaction.transaction_type === 'income' ? 'default' : 'destructive'} className="rounded-full">
+                                                        {transaction.transaction_type === 'income' ? 'إيراد' : 'مصروف'}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {activeTab === "transactions" && (
+                    <div className="space-y-6">
+                        {/* Search and Filters */}
+                        <Card className="rounded-3xl border-0 shadow-ios">
+                            <CardContent className="p-4">
+                                <div className="flex flex-col space-y-3">
+                                    <div className="relative">
+                                        <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="البحث في المعاملات..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="pr-10 rounded-2xl"
+                                        />
+                                    </div>
+                                    <div className="flex space-x-2 space-x-reverse">
+                                        <Select value={filterType} onValueChange={setFilterType}>
+                                            <SelectTrigger className="rounded-2xl">
+                                                <SelectValue placeholder="نوع المعاملة" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">الكل</SelectItem>
+                                                <SelectItem value="income">الإيرادات</SelectItem>
+                                                <SelectItem value="expense">المصروفات</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                                            <SelectTrigger className="rounded-2xl">
+                                                <SelectValue placeholder="الفترة" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="current_month">الشهر الحالي</SelectItem>
+                                                <SelectItem value="last_month">الشهر الماضي</SelectItem>
+                                                <SelectItem value="current_year">السنة الحالية</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Transactions Table */}
+                        <Card className="rounded-3xl border-0 shadow-ios">
+                            <CardHeader className="p-4">
+                                <CardTitle className="text-lg">جميع المعاملات</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>الوصف</TableHead>
+                                            <TableHead>المبلغ</TableHead>
+                                            <TableHead>التاريخ</TableHead>
+                                            <TableHead>النوع</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredTransactions.map((transaction) => (
+                                            <TableRow key={transaction.id}>
+                                                <TableCell className="font-medium">
+                                                    {transaction.description}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className={transaction.transaction_type === 'income' ? 'text-green-600' : 'text-red-600'}>
+                                                        {transaction.transaction_type === 'income' ? '+' : '-'}
+                                                        {formatCurrency(Math.abs(transaction.amount))}
+                                                    </span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {new Date(transaction.transaction_date).toLocaleDateString('ar-IQ')}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={transaction.transaction_type === 'income' ? 'default' : 'destructive'} className="rounded-full">
+                                                        {transaction.transaction_type === 'income' ? 'إيراد' : 'مصروف'}
+                                                    </Badge>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {activeTab === "students" && (
+                    <Card className="rounded-3xl border-0 shadow-ios">
+                        <CardHeader className="p-4">
+                            <CardTitle className="text-lg">مدفوعات الطلاب</CardTitle>
+                            <CardDescription>
+                                متابعة مدفوعات الطلاب ومستحقاتهم
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-center py-8 text-muted-foreground">
+                                متابعة مدفوعات الطلاب - قريباً
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {activeTab === "reports" && (
+                    <Card className="rounded-3xl border-0 shadow-ios">
+                        <CardHeader className="p-4">
+                            <CardTitle className="text-lg">التقارير المالية</CardTitle>
+                            <CardDescription>
+                                تقارير وإحصائيات مالية شاملة
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-center py-8 text-muted-foreground">
+                                التقارير المالية - قريباً
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
+
+            {/* iOS Tab Bar */}
+            <IOSTabBar activeTab={iosActiveTab} onTabChange={setIosActiveTab} />
         </div>
     );
 };

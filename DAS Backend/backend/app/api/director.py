@@ -59,12 +59,13 @@ async def get_director_dashboard(
         total_classes = total_classes_query.count()
         
         # Subject Statistics (need to join with Class since Subject doesn't have academic_year_id directly)
-        total_subjects_query = db.query(Subject)
+        # Use func.count() instead of .count() to avoid issues with column selection
+        total_subjects_query = db.query(func.count(Subject.id))
         if academic_year_id:
             total_subjects_query = total_subjects_query.join(Class).filter(
                 Class.academic_year_id == academic_year_id
             )
-        total_subjects = total_subjects_query.count()
+        total_subjects = total_subjects_query.scalar()
         
         # Activity Statistics
         active_activities_query = db.query(Activity)

@@ -5,14 +5,15 @@ Implements AI-like optimization for schedule generation
 
 import random
 import math
-from typing import List, Dict, Tuple, Set, Optional, Any
+from typing import List, Dict, Tuple, Set, Optional, Any, cast
 from dataclasses import dataclass
 from datetime import time, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 
 from ..models.schedules import ScheduleAssignment, TimeSlot
 from ..models.academic import Class, Subject
-from ..models.teachers import Teacher
+from ..models.teachers import Teacher, TeacherAssignment
 from ..schemas.schedules import DayOfWeek, ScheduleGenerationRequest
 
 @dataclass
@@ -35,7 +36,7 @@ class ScheduleScore:
 class GeneticScheduleOptimizer:
     """Genetic Algorithm for schedule optimization"""
     
-    def __init__(self, db: Session = None):
+    def __init__(self, db: Session):
         self.db = db
         self.population_size = 50
         self.generations = 100
@@ -218,51 +219,50 @@ class GeneticScheduleOptimizer:
         
         elif mutation_type == 'reassign':
             # Reassign to random time slot
-            if mutated:
+            if mutated and time_slots:
                 assignment = random.choice(mutated)
                 new_slot = random.choice(time_slots)
                 assignment.time_slot_id = new_slot.id
         
         elif mutation_type == 'teacher_change':
             # Change teacher for random assignment
-            if mutated:
+            if mutated and self.db:
                 assignment = random.choice(mutated)
                 # Find alternative teachers for this subject
-                alternative_teachers = self._find_alternative_teachers(assignment.subject_id)
-                
-                if alternative_teachers:
-                    # Select a teacher who is not already assigned at this time
-                    available_teachers = self._filter_available_teachers(
-                        alternative_teachers, assignment.time_slot_id, assignment.teacher_id
-                    )
+                if assignment.subject_id is not None:  # Check if subject_id is not None
+                    alternative_teachers = self._find_alternative_teachers(assignment.subject_id)
                     
-                    if available_teachers:
-                        # Select the best available teacher
-                        best_teacher = self._select_best_teacher(available_teachers, assignment)
-                        assignment.teacher_id = best_teacher.id
+                    if alternative_teachers:
+                        # Select a teacher who is not already assigned at this time
+                        available_teachers = self._filter_available_teachers(
+                            alternative_teachers, assignment.time_slot_id, assignment.teacher_id
+                        )
+                        
+                        if available_teachers:
+                            # Select the best available teacher
+                            best_teacher = self._select_best_teacher(available_teachers, assignment)
+                            if best_teacher:  # Check if best_teacher is not None
+                                assignment.teacher_id = best_teacher.id
+                        else:
+                            # If no teachers available, keep current teacher or clear if needed
+                            if random.random() < 0.3:  # 30% chance to clear
+                                assignment.teacher_id = None
                     else:
-                        # If no teachers available, keep current teacher or clear if needed
-                        if random.random() < 0.3:  # 30% chance to clear
-                            assignment.teacher_id = None
-                else:
-                    # If no alternative teachers, clear the assignment
-                    assignment.teacher_id = None
+                        # If no alternative teachers, clear the assignment
+                        assignment.teacher_id = None
         
         return mutated
-    
+
     def _find_alternative_teachers(self, subject_id: int) -> List[Teacher]:
         """Find alternative teachers who can teach the given subject"""
-        if not self.db:
-            return []
-        
         try:
             # Query teachers who are assigned to this subject
-            alternative_teachers = self.db.query(Teacher).join(TeacherAssignment).filter(
-                and_(
+            alternative_teachers = self.db.query(Teacher).join(TeacherAssignment).filter( 
+                and_( 
                     TeacherAssignment.subject_id == subject_id,
                     Teacher.is_active == True
                 )
-            ).all()
+            ).all() 
             
             return alternative_teachers
         except Exception as e:
@@ -283,152 +283,28 @@ class GeneticScheduleOptimizer:
                 continue
             
             # Check if teacher is already assigned at this time slot
-            conflict = self.db.query(ScheduleAssignment).filter(
-                and_(
-                    ScheduleAssignment.teacher_id == teacher.id,
-                    ScheduleAssignment.time_slot_id == time_slot_id
-                )
-            ).first()
-            
-            # If no conflict, teacher is available
-            if not conflict:
-                available_teachers.append(teacher)
+            try:
+                conflict = self.db.query(ScheduleAssignment).filter( 
+                    and_( 
+                        ScheduleAssignment.teacher_id == teacher.id,
+                        ScheduleAssignment.time_slot_id == time_slot_id
+                    )
+                ).first() 
+                
+                # If no conflict, teacher is available
+                if not conflict:
+                    available_teachers.append(teacher)
+            except Exception:
+                # If there's an error in the query, skip this teacher
+                continue
         
         return available_teachers
-    
-    def _select_best_teacher(self, teachers: List[Teacher], assignment: ScheduleAssignment) -> Optional[Teacher]:
-        """Select the best teacher from available options"""
-        if not teachers:
-            return None
-        
-        # For now, select randomly from available teachers
-        # In a more sophisticated implementation, this would consider:
-        # - Teacher workload
-        # - Teacher expertise
-        # - Teacher preferences
-        # - Class performance history
-        return random.choice(teachers)
-    
-    def _fix_crossover_conflicts(self, schedule: List[ScheduleAssignment], 
-                                time_slots: List[TimeSlot]) -> List[ScheduleAssignment]:
-        """Fix conflicts that arise from crossover"""
-        # Remove duplicate time slot assignments for same class
-        seen_class_slots = set()
-        fixed_schedule = []
-        
-        for assignment in schedule:
-            key = (assignment.class_id, assignment.time_slot_id)
-            if key not in seen_class_slots:
-                seen_class_slots.add(key)
-                fixed_schedule.append(assignment)
-        
-        return fixed_schedule
-    
-    # Constraint checking methods
-    def _check_teacher_availability(self, assignments: List[ScheduleAssignment], params: Dict) -> int:
-        """Check teacher availability constraints"""
-        violations = 0
-        teacher_schedule = {}
-        
-        for assignment in assignments:
-            if assignment.teacher_id:
-                key = (assignment.teacher_id, assignment.time_slot_id)
-                if key in teacher_schedule:
-                    violations += 1
-                else:
-                    teacher_schedule[key] = assignment
-        
-        return violations
-    
-    def _check_room_capacity(self, assignments: List[ScheduleAssignment], params: Dict) -> int:
-        """Check room capacity constraints using actual database data"""
-        violations = 0
-        
-        # Get actual class sizes and room capacities from database
-        class_sizes = self._get_actual_class_sizes()
-        room_capacities = self._get_actual_room_capacities()
-        
-        # Check each assignment
-        for assignment in assignments:
-            if assignment.room:
-                class_id = assignment.class_id
-                room_name = assignment.room
-                
-                # Get actual class size
-                class_size = class_sizes.get(class_id, 0)
-                if class_size == 0:
-                    # If not found, estimate based on class information
-                    class_size = self._estimate_class_size(class_id)
-                
-                # Get actual room capacity
-                room_capacity = room_capacities.get(room_name, 0)
-                if room_capacity == 0:
-                    # If not found, estimate based on room type
-                    room_capacity = self._estimate_room_capacity(room_name)
-                
-                # Check if class fits in room
-                if class_size > room_capacity:
-                    violations += 1
-        
-        return violations
-    
-    def _get_actual_class_sizes(self) -> Dict[int, int]:
-        """Get actual class sizes from database"""
-        if not self.db:
-            return {}
-        
-        try:
-            # This would query actual enrollment data
-            # For now, we'll create a more realistic estimation
-            class_sizes = {}
-            
-            # In a real implementation, this would query:
-            # - Student enrollment per class
-            # - Active student count
-            # - Class capacity limits
-            
-            return class_sizes
-        except Exception as e:
-            print(f"Failed to get actual class sizes: {e}")
-            return {}
-    
-    def _get_actual_room_capacities(self) -> Dict[str, int]:
-        """Get actual room capacities from database or configuration"""
-        if not self.db:
-            return {}
-        
-        try:
-            # This would query actual room data
-            # For now, we'll create a more realistic mapping
-            room_capacities = {
-                "Math Lab": 30,
-                "Science Lab": 25,
-                "Computer Lab": 20,
-                "Language Lab": 30,
-                "Gymnasium": 50,
-                "Library": 40,
-                "Auditorium": 100
-            }
-            
-            # In a real implementation, this would query a rooms table with:
-            # - Room name
-            # - Capacity
-            # - Room type
-            # - Equipment information
-            
-            return room_capacities
-        except Exception as e:
-            print(f"Failed to get actual room capacities: {e}")
-            return {}
-    
+
     def _estimate_class_size(self, class_id: int) -> int:
         """Estimate class size based on class information"""
-        if not self.db:
-            return 30  # Default estimate
-        
         try:
             # Get class information
-            class_obj = self.db.query(Class).filter(Class.id == class_id).first()
+            class_obj = self.db.query(Class).filter(Class.id == class_id).first() 
             if not class_obj:
                 return 30  # Default estimate
             
@@ -818,23 +694,26 @@ class GeneticScheduleOptimizer:
             if redistributed >= excess:
                 break
             
-            assignment = schedule[assignment_idx]
-            subject_id = assignment.get('subject_id')
-            
-            # Find suitable alternative teachers for this subject
-            alternative_teachers = self._find_alternative_teachers(subject_id) if hasattr(self, '_find_alternative_teachers') else []
-            
-            # Filter for underloaded teachers who can teach this subject
-            suitable_teachers = [
-                teacher_id for teacher_id, _ in underloaded_teachers 
-                if teacher_id in [t.id for t in alternative_teachers] if alternative_teachers
-            ] or [teacher_id for teacher_id, _ in underloaded_teachers]
-            
-            if suitable_teachers:
-                # Assign to the most underloaded suitable teacher
-                new_teacher_id = suitable_teachers[0]
-                assignment['teacher_id'] = new_teacher_id
-                redistributed += 1
+            if assignment_idx < len(schedule):  # Check bounds
+                assignment = schedule[assignment_idx]
+                subject_id = assignment.get('subject_id')
+                
+                # Find suitable alternative teachers for this subject
+                alternative_teachers = []
+                if subject_id is not None:  # Check if subject_id is not None
+                    alternative_teachers = self._find_alternative_teachers(subject_id) if hasattr(self, '_find_alternative_teachers') else []
+                
+                # Filter for underloaded teachers who can teach this subject
+                suitable_teachers = [
+                    teacher_id for teacher_id, _ in underloaded_teachers 
+                    if alternative_teachers and teacher_id in [t.id for t in alternative_teachers if hasattr(t, 'id')]
+                ] or [teacher_id for teacher_id, _ in underloaded_teachers]
+                
+                if suitable_teachers:
+                    # Assign to the most underloaded suitable teacher
+                    new_teacher_id = suitable_teachers[0]
+                    assignment['teacher_id'] = new_teacher_id
+                    redistributed += 1
     
     def _find_underloaded_teachers(self, teacher_assignments: Dict[int, List[int]]) -> List[Tuple[int, int]]:
         """Find teachers with light workloads"""
@@ -978,6 +857,125 @@ class GeneticScheduleOptimizer:
         # In a real implementation with generation tracking, this would adapt
         # For now, we'll return a more sophisticated base rate
         return min(0.2, max(0.05, base_rate))  # Keep between 5% and 20%
+    
+    def _check_teacher_availability(self, assignments: List[ScheduleAssignment], params: Dict) -> int:
+        """Check teacher availability constraints"""
+        violations = 0
+        teacher_schedule = {}
+        
+        for assignment in assignments:
+            if assignment.teacher_id:
+                key = (assignment.teacher_id, assignment.time_slot_id)
+                if key in teacher_schedule:
+                    violations += 1
+                else:
+                    teacher_schedule[key] = assignment
+        
+        return violations
+    
+    def _check_room_capacity(self, assignments: List[ScheduleAssignment], params: Dict) -> int:
+        """Check room capacity constraints using actual database data"""
+        violations = 0
+        
+        # Get actual class sizes and room capacities from database
+        class_sizes = self._get_actual_class_sizes()
+        room_capacities = self._get_actual_room_capacities()
+        
+        # Check each assignment
+        for assignment in assignments:
+            if assignment.room:
+                class_id = assignment.class_id
+                room_name = assignment.room
+                
+                # Get actual class size
+                class_size = class_sizes.get(class_id, 0)
+                if class_size == 0:
+                    # If not found, estimate based on class information
+                    class_size = self._estimate_class_size(class_id)
+                
+                # Get actual room capacity
+                room_capacity = room_capacities.get(room_name, 0)
+                if room_capacity == 0:
+                    # If not found, estimate based on room type
+                    room_capacity = self._estimate_room_capacity(room_name)
+                
+                # Check if class fits in room
+                if class_size > room_capacity:
+                    violations += 1
+        
+        return violations
+    
+    def _get_actual_class_sizes(self) -> Dict[int, int]:
+        """Get actual class sizes from database"""
+        try:
+            # This would query actual enrollment data
+            # For now, we'll create a more realistic estimation
+            class_sizes = {}
+            
+            # In a real implementation, this would query:
+            # - Student enrollment per class
+            # - Active student count
+            # - Class capacity limits
+            
+            return class_sizes
+        except Exception as e:
+            print(f"Failed to get actual class sizes: {e}")
+            return {}
+    
+    def _get_actual_room_capacities(self) -> Dict[str, int]:
+        """Get actual room capacities from database or configuration"""
+        try:
+            # This would query actual room data
+            # For now, we'll create a more realistic mapping
+            room_capacities = {
+                "Math Lab": 30,
+                "Science Lab": 25,
+                "Computer Lab": 20,
+                "Language Lab": 30,
+                "Gymnasium": 50,
+                "Library": 40,
+                "Auditorium": 100
+            }
+            
+            # In a real implementation, this would query a rooms table with:
+            # - Room name
+            # - Capacity
+            # - Room type
+            # - Equipment information
+            
+            return room_capacities
+        except Exception as e:
+            print(f"Failed to get actual room capacities: {e}")
+            return {}
+    
+    def _fix_crossover_conflicts(self, schedule: List[ScheduleAssignment], 
+                                time_slots: List[TimeSlot]) -> List[ScheduleAssignment]:
+        """Fix conflicts that arise from crossover"""
+        # Remove duplicate time slot assignments for same class
+        seen_class_slots = set()
+        fixed_schedule = []
+        
+        for assignment in schedule:
+            key = (assignment.class_id, assignment.time_slot_id)
+            if key not in seen_class_slots:
+                seen_class_slots.add(key)
+                fixed_schedule.append(assignment)
+        
+        return fixed_schedule
+    
+    def _select_best_teacher(self, teachers: List[Teacher], assignment: ScheduleAssignment) -> Optional[Teacher]:
+        """Select the best teacher from available options"""
+        if not teachers:
+            return None
+        
+        # For now, select randomly from available teachers
+        # In a more sophisticated implementation, this would consider:
+        # - Teacher workload
+        # - Teacher expertise
+        # - Teacher preferences
+        # - Class performance history
+        return random.choice(teachers)
+
 
 class SimulatedAnnealingOptimizer:
     """Simulated Annealing for schedule optimization"""

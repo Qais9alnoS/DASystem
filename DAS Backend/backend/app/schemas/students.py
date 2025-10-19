@@ -76,11 +76,11 @@ class StudentResponse(StudentBase):
         from_attributes = True
 
 class StudentFinanceBase(BaseModel):
-    school_fee: Decimal = 0
-    school_fee_discount: Decimal = 0
-    bus_fee: Decimal = 0
-    bus_fee_discount: Decimal = 0
-    other_revenues: Decimal = 0
+    school_fee: Decimal = Decimal('0')
+    school_fee_discount: Decimal = Decimal('0')
+    bus_fee: Decimal = Decimal('0')
+    bus_fee_discount: Decimal = Decimal('0')
+    other_revenues: Decimal = Decimal('0')
     payment_notes: Optional[str] = None
 
 class StudentFinanceCreate(StudentFinanceBase):

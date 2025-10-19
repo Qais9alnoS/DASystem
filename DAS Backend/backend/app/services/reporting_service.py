@@ -55,7 +55,7 @@ class ReportingService:
                 # Total revenue from student fees
                 student_revenue_query = db.query(func.sum(StudentPayment.payment_amount)).filter(
                     StudentPayment.academic_year_id == academic_year_id
-                )
+                )  
                 
                 if start_date:
                     student_revenue_query = student_revenue_query.filter(
@@ -74,7 +74,7 @@ class ReportingService:
                         FinanceTransaction.academic_year_id == academic_year_id,
                         FinanceTransaction.transaction_type == "income"
                     )
-                )
+                )  
                 
                 if start_date:
                     income_query = income_query.filter(
@@ -93,7 +93,7 @@ class ReportingService:
                         FinanceTransaction.academic_year_id == academic_year_id,
                         FinanceTransaction.transaction_type == "expense"
                     )
-                )
+                )  
                 
                 if start_date:
                     expense_query = expense_query.filter(
@@ -112,11 +112,11 @@ class ReportingService:
                         Student.academic_year_id == academic_year_id,
                         Student.is_active == True
                     )
-                ).count()
+                ).count()  
                 
                 students_with_payments = db.query(StudentPayment.student_id).filter(
                     StudentPayment.academic_year_id == academic_year_id
-                ).distinct().count()
+                ).distinct().count()  
                 
                 # Expected revenue calculation
                 expected_revenue_query = db.query(
@@ -125,7 +125,7 @@ class ReportingService:
                         StudentFinance.bus_fee - StudentFinance.bus_fee_discount +
                         StudentFinance.other_revenues
                     )
-                ).filter(StudentFinance.academic_year_id == academic_year_id)
+                ).filter(StudentFinance.academic_year_id == academic_year_id)  
                 
                 expected_revenue = expected_revenue_query.scalar() or 0
                 
@@ -140,7 +140,7 @@ class ReportingService:
                         FinanceTransaction.academic_year_id == academic_year_id,
                         FinanceTransaction.transaction_type == "expense"
                     )
-                ).group_by(FinanceCategory.category_name).all()
+                ).group_by(FinanceCategory.category_name).all()  
                 
                 total_revenue = total_student_revenue + other_income
                 net_profit = total_revenue - total_expenses
@@ -190,7 +190,7 @@ class ReportingService:
                         Student.academic_year_id == academic_year_id,
                         Student.is_active == True
                     )
-                ).group_by(Student.grade_level).all()
+                ).group_by(Student.grade_level).all()  
                 
                 # Students by session type
                 students_by_session = db.query(
@@ -201,7 +201,7 @@ class ReportingService:
                         Student.academic_year_id == academic_year_id,
                         Student.is_active == True
                     )
-                ).group_by(Student.session_type).all()
+                ).group_by(Student.session_type).all()  
                 
                 # Students by gender
                 students_by_gender = db.query(
@@ -212,7 +212,7 @@ class ReportingService:
                         Student.academic_year_id == academic_year_id,
                         Student.is_active == True
                     )
-                ).group_by(Student.gender).all()
+                ).group_by(Student.gender).all()  
                 
                 # Transportation statistics
                 transport_stats = db.query(
@@ -223,7 +223,7 @@ class ReportingService:
                         Student.academic_year_id == academic_year_id,
                         Student.is_active == True
                     )
-                ).group_by(Student.transportation_type).all()
+                ).group_by(Student.transportation_type).all()  
                 
                 # Special needs students
                 special_needs_count = db.query(Student).filter(
@@ -232,14 +232,14 @@ class ReportingService:
                         Student.has_special_needs == True,
                         Student.is_active == True
                     )
-                ).count()
+                ).count()  
                 
                 total_students = db.query(Student).filter(
                     and_(
                         Student.academic_year_id == academic_year_id,
                         Student.is_active == True
                     )
-                ).count()
+                ).count()  
                 
                 return {
                     "total_students": total_students,
@@ -283,7 +283,7 @@ class ReportingService:
                 
                 query = db.query(StudentAcademic).filter(
                     StudentAcademic.academic_year_id == academic_year_id
-                )
+                )  
                 
                 if class_id:
                     query = query.join(Student).filter(Student.class_id == class_id)
@@ -352,14 +352,14 @@ class ReportingService:
                         LoginAttempt.attempted_at >= start_date,
                         LoginAttempt.success == True
                     )
-                ).count()
+                ).count()  
                 
                 failed_logins = db.query(LoginAttempt).filter(
                     and_(
                         LoginAttempt.attempted_at >= start_date,
                         LoginAttempt.success == False
                     )
-                ).count()
+                ).count()  
                 
                 # Unique users
                 unique_users = db.query(LoginAttempt.username).filter(
@@ -367,7 +367,7 @@ class ReportingService:
                         LoginAttempt.attempted_at >= start_date,
                         LoginAttempt.success == True
                     )
-                ).distinct().count()
+                ).distinct().count()  
                 
                 # System logs by level
                 log_stats = db.query(
@@ -375,7 +375,7 @@ class ReportingService:
                     func.count(SystemLog.id).label("count")
                 ).filter(
                     SystemLog.timestamp >= start_date
-                ).group_by(SystemLog.level).all()
+                ).group_by(SystemLog.level).all()  
                 
                 # Audit activity
                 audit_activity = db.query(
@@ -383,7 +383,7 @@ class ReportingService:
                     func.count(AuditLog.id).label("count")
                 ).filter(
                     AuditLog.timestamp >= start_date
-                ).group_by(AuditLog.action).all()
+                ).group_by(AuditLog.action).all()  
                 
                 # Daily login trend
                 daily_logins = db.query(
@@ -394,7 +394,7 @@ class ReportingService:
                         LoginAttempt.attempted_at >= start_date,
                         LoginAttempt.success == True
                     )
-                ).group_by(func.date(LoginAttempt.attempted_at)).all()
+                ).group_by(func.date(LoginAttempt.attempted_at)).all()  
                 
                 success_rate = (total_logins / max(total_logins + failed_logins, 1)) * 100
                 
@@ -446,7 +446,7 @@ class ReportingService:
                     )
                 ).group_by(LoginAttempt.ip_address).order_by(
                     func.count(LoginAttempt.id).desc()
-                ).limit(10).all()
+                ).limit(10).all()  
                 
                 # Security-related audit events
                 security_events = db.query(AuditLog).filter(
@@ -454,7 +454,7 @@ class ReportingService:
                         AuditLog.timestamp >= start_date,
                         AuditLog.action.in_(["LOGIN", "LOGOUT", "PASSWORD_CHANGE", "FAILED_LOGIN", "RATE_LIMIT_EXCEEDED"])
                     )
-                ).count()
+                ).count()  
                 
                 # Error events that might indicate security issues
                 error_events = db.query(SystemLog).filter(
@@ -462,7 +462,7 @@ class ReportingService:
                         SystemLog.timestamp >= start_date,
                         SystemLog.level.in_(["ERROR", "CRITICAL"])
                     )
-                ).count()
+                ).count()  
                 
                 # Suspicious activity indicators
                 suspicious_ips = db.query(LoginAttempt.ip_address).filter(
@@ -472,7 +472,7 @@ class ReportingService:
                     )
                 ).group_by(LoginAttempt.ip_address).having(
                     func.count(LoginAttempt.id) >= 10  # 10+ failed attempts
-                ).all()
+                ).all()  
                 
                 return {
                     "audit_period": f"Last {days} days",
@@ -552,6 +552,10 @@ class ReportingService:
         total_absences = sum(s["total_absence_days"] for s in student_attendance_stats)
         avg_absences = total_absences / total_students if total_students > 0 else 0
         
+        # Initialize variables to avoid "possibly unbound" errors
+        std_dev = 0
+        mean_absences = 0
+        
         # Find students with high absences (more than 2 standard deviations above mean)
         if total_students > 1:
             import statistics
@@ -562,10 +566,13 @@ class ReportingService:
         else:
             high_absence_students = []
         
+        # Use default values when variables might be unbound
+        high_absence_threshold = round(mean_absences + 2 * std_dev, 2) if total_students > 1 else 0
+        
         return {
             "average_absences_per_student": round(avg_absences, 2),
             "students_with_high_absences": len(high_absence_students),
-            "high_absence_threshold": round(mean_absences + 2 * std_dev, 2) if total_students > 1 else 0
+            "high_absence_threshold": high_absence_threshold
         }
     
     def _calculate_teacher_attendance_statistics(self, teacher_attendance_stats):
@@ -836,10 +843,10 @@ class ReportingService:
                     query = query.filter(Activity.activity_type == activity_type)
                 
                 if start_date:
-                    query = query.filter(Activity.activity_date >= start_date)
+                    query = query.filter(Activity.start_date >= start_date)
                 
                 if end_date:
-                    query = query.filter(Activity.activity_date <= end_date)
+                    query = query.filter(Activity.end_date <= end_date)
                 
                 activities = query.all()
                 

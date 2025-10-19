@@ -54,5 +54,18 @@ def update_database_schema():
         except Exception as e:
             print(f"Error adding class_id column: {e}")
     
+    # Check if is_active column exists in subjects table
+    cursor.execute("PRAGMA table_info(subjects)")
+    columns = cursor.fetchall()
+    is_active_exists = any(col[1] == 'is_active' for col in columns)
+    
+    # Add is_active column if it doesn't exist
+    if not is_active_exists:
+        try:
+            cursor.execute("ALTER TABLE subjects ADD COLUMN is_active BOOLEAN DEFAULT 1")
+            print("Added is_active column to subjects table")
+        except Exception as e:
+            print(f"Error adding is_active column: {e}")
+    
     conn.commit()
     conn.close()

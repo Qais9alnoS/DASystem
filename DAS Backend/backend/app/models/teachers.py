@@ -65,6 +65,8 @@ class TeacherFinance(BaseModel):
     # Teacher finance attributes
     teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=False)
     academic_year_id = Column(Integer, ForeignKey("academic_years.id"), nullable=False)
+    month = Column(Integer)  # Add missing month column
+    year = Column(Integer)   # Add missing year column
     base_salary = Column(Numeric(10,2), default=0)
     bonuses = Column(Numeric(10,2), default=0)
     deductions = Column(Numeric(10,2), default=0)

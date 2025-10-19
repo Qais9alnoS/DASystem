@@ -5,27 +5,28 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 btn-ripple",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-base font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-gradient-primary text-primary-foreground shadow-elevation-2 hover:shadow-elevation-3 hover:-translate-y-0.5 hover:scale-105",
-        destructive: "bg-destructive text-destructive-foreground shadow-elevation-2 hover:shadow-elevation-3 hover:-translate-y-0.5",
-        outline: "border border-border bg-background hover:bg-card-hover hover:shadow-card hover:-translate-y-0.5",
-        secondary: "bg-gradient-secondary text-secondary-foreground shadow-elevation-2 hover:shadow-elevation-3 hover:-translate-y-0.5 hover:scale-105",
-        ghost: "hover:bg-card-hover hover:text-accent-foreground hover:-translate-y-0.5",
+        // iOS-style variants
+        default: "bg-primary text-primary-foreground shadow-ios hover:shadow-ios-lg active:scale-[0.98] active:shadow-none transition-all duration-200",
+        destructive: "bg-destructive text-destructive-foreground shadow-ios hover:shadow-ios-lg active:scale-[0.98] transition-all duration-200",
+        outline: "border border-input bg-background hover:bg-card-hover hover:text-accent-foreground shadow-ios active:scale-[0.98] transition-all duration-200",
+        secondary: "bg-secondary text-secondary-foreground shadow-ios hover:shadow-ios-lg active:scale-[0.98] transition-all duration-200",
+        ghost: "hover:bg-card-hover hover:text-accent-foreground active:scale-[0.98] transition-all duration-200",
         link: "text-primary underline-offset-4 hover:underline",
-        hero: "bg-gradient-hero text-white shadow-glow hover:shadow-elevation-3 hover:-translate-y-1 hover:scale-110 transform transition-all duration-300 animate-pulse-glow",
-        glass: "glass text-foreground backdrop-blur-md hover:backdrop-blur-lg hover:-translate-y-0.5",
-        accent: "bg-gradient-accent text-accent-foreground shadow-elevation-2 hover:shadow-elevation-3 hover:-translate-y-0.5 hover:scale-105",
-        premium: "bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-elevation-3 hover:-translate-y-1 hover:scale-110 border border-primary-glow/30",
+        hero: "bg-gradient-hero text-white shadow-glow hover:shadow-elevation-3 active:scale-[0.98] transition-all duration-300",
+        glass: "glass text-foreground backdrop-blur-md hover:backdrop-blur-lg active:scale-[0.98] transition-all duration-200",
+        accent: "bg-accent text-accent-foreground shadow-ios hover:shadow-ios-lg active:scale-[0.98] transition-all duration-200",
+        premium: "bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-elevation-3 active:scale-[0.98] transition-all duration-300 border border-primary-glow/30",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-xl px-3",
-        lg: "h-12 rounded-2xl px-8 text-base",
-        xl: "h-16 rounded-3xl px-12 text-lg font-bold",
-        icon: "h-10 w-10",
+        default: "h-11 px-5 py-2.5",
+        sm: "h-9 rounded-full px-4 py-2 text-sm",
+        lg: "h-13 rounded-full px-8 text-lg",
+        xl: "h-15 rounded-full px-10 text-xl font-bold",
+        icon: "h-11 w-11 rounded-full",
       },
     },
     defaultVariants: {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,10 +61,10 @@ export function ComprehensiveTeacherManagementPage() {
     const [selectedTeacher, setSelectedTeacher] = useState<ComprehensiveTeacherData | null>(null);
     const [activeTab, setActiveTab] = useState('personal');
     const [filters, setFilters] = useState({
-        gender: '',
+        gender: 'all',
         sessionType: '',
         subject: '',
-        isActive: ''
+        isActive: 'all'
     });
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [teacherToEdit, setTeacherToEdit] = useState<Teacher | null>(null);
@@ -153,10 +153,10 @@ export function ComprehensiveTeacherManagementPage() {
             );
         }
 
-        if (filters.gender) {
+        if (filters.gender && filters.gender !== 'all') {
             filtered = filtered.filter(t => t.teacher.gender === filters.gender);
         }
-        if (filters.isActive !== '') {
+        if (filters.isActive && filters.isActive !== 'all') {
             filtered = filtered.filter(t => t.teacher.is_active.toString() === filters.isActive);
         }
 
@@ -301,7 +301,7 @@ export function ComprehensiveTeacherManagementPage() {
                                     <SelectValue placeholder="الجنس" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">الكل</SelectItem>
+                                    <SelectItem value="all">الكل</SelectItem>
                                     <SelectItem value="male">ذكر</SelectItem>
                                     <SelectItem value="female">أنثى</SelectItem>
                                 </SelectContent>
@@ -311,7 +311,7 @@ export function ComprehensiveTeacherManagementPage() {
                                     <SelectValue placeholder="الحالة" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">الكل</SelectItem>
+                                    <SelectItem value="all">الكل</SelectItem>
                                     <SelectItem value="true">نشط</SelectItem>
                                     <SelectItem value="false">غير نشط</SelectItem>
                                 </SelectContent>

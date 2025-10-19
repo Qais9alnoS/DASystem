@@ -10,7 +10,7 @@ from ..core.dependencies import get_current_user, require_roles
 from ..services.monitoring_service import monitoring_service
 from ..services.reporting_service import reporting_service
 
-router = APIRouter(prefix="/monitoring", tags=["monitoring"])
+router = APIRouter(tags=["monitoring"])
 
 @router.get("/health")
 async def get_system_health(

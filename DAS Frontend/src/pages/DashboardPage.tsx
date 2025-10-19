@@ -6,6 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Plus, GraduationCap, Users, DollarSign, Calendar, Trophy, FileText, BookOpen, BarChart3 } from 'lucide-react';
 import { directorApi, activitiesApi, academicYearsApi } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
+import { IOSNavbar } from '@/components/ui/ios-navbar';
+import { IOSTabBar } from '@/components/ui/ios-tabbar';
+import { IOSList, IOSListItem, IOSListHeader } from '@/components/ui/ios-list';
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -23,6 +26,7 @@ const DashboardPage = () => {
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState("home");
 
   // Fetch real dashboard stats
   useEffect(() => {
@@ -160,120 +164,112 @@ const DashboardPage = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            مرحباً بك في نظام DAS
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            نظام متكامل لإدارة شؤون المدرسة
-          </p>
+    <div className="min-h-screen bg-background">
+      {/* iOS Navigation Bar */}
+      <IOSNavbar 
+        title="لوحة التحكم" 
+        largeTitle={true}
+      />
+      
+      <div className="p-4 pb-24">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          {statsData.map((stat, index) => (
+            <Card key={index} className="rounded-3xl border-0 shadow-ios">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {stat.title}
+                    </p>
+                    <p className="text-xl font-bold text-foreground mt-1">
+                      {stat.value}
+                    </p>
+                  </div>
+                  <div className={`p-2 rounded-full ${stat.bgColor}`}>
+                    <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-        <Button
-          onClick={() => navigate('/students/new')}
-          className="gap-2 btn-fluent"
-        >
-          <Plus className="h-4 w-4" />
-          طالب جديد
-        </Button>
-      </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statsData.map((stat, index) => (
-          <Card key={index} className="fluent-card border-0">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    {stat.title}
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                    {stat.value}
-                  </p>
-                </div>
-                <div className={`p-3 rounded-md ${stat.bgColor}`}>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {quickActions.map((action, index) => (
-          <Card
-            key={index}
-            className="fluent-card border-0 hover:translate-y-[-2px] transition-all cursor-pointer"
-            onClick={action.action}
-          >
-            <CardContent className="p-6">
-              <div className={`p-3 rounded-md ${action.bgColor} w-fit mb-4`}>
-                <action.icon className={`h-6 w-6 ${action.color}`} />
-              </div>
-              <h3 className="font-semibold text-lg text-gray-900 dark:text-white">
-                {action.title}
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mt-2">
-                {action.description}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Recent Activities */}
-      <Card className="fluent-card border-0">
-        <CardHeader>
-          <CardTitle>آخر الأنشطة</CardTitle>
-          <CardDescription>
-            آخر العمليات والأنشطة في النظام
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {recentActivities.length > 0 ? (
-              recentActivities.map((activity: any, index: number) => (
-                <div 
+        {/* Quick Actions */}
+        <Card className="mb-6 rounded-3xl border-0 shadow-ios">
+          <CardHeader className="p-4">
+            <CardTitle className="text-lg">إجراءات سريعة</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <IOSList>
+              {quickActions.map((action, index) => (
+                <IOSListItem 
                   key={index} 
-                  className="flex items-center justify-between p-4 border rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
-                  onClick={() => navigate(`/activities/${activity.id}`)}
+                  icon={<action.icon className={`h-5 w-5 ${action.color}`} />}
+                  chevron
+                  onClick={action.action}
                 >
-                  <div className="flex items-center space-x-3 space-x-reverse">
-                    <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-md">
-                      <Trophy className="h-5 w-5 text-primary" />
-                    </div>
+                  <div>
+                    <h3 className="font-medium text-foreground">
+                      {action.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {action.description}
+                    </p>
+                  </div>
+                </IOSListItem>
+              ))}
+            </IOSList>
+          </CardContent>
+        </Card>
+
+        {/* Recent Activities */}
+        <Card className="rounded-3xl border-0 shadow-ios">
+          <CardHeader className="p-4">
+            <CardTitle className="text-lg">آخر الأنشطة</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <IOSList>
+              {recentActivities.length > 0 ? (
+                recentActivities.map((activity: any, index: number) => (
+                  <IOSListItem 
+                    key={index} 
+                    icon={<Trophy className="h-5 w-5 text-primary" />}
+                    chevron
+                    onClick={() => navigate(`/activities/${activity.id}`)}
+                  >
                     <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white">
+                      <h4 className="font-medium text-foreground">
                         {activity.name}
                       </h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {new Date(activity.created_at || activity.start_date).toLocaleDateString('ar-IQ')}
-                      </p>
+                      <div className="flex justify-between items-center mt-1">
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(activity.created_at || activity.start_date).toLocaleDateString('ar-IQ')}
+                        </p>
+                        <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+                          {activity.activity_type === 'academic' && 'أكاديمي'}
+                          {activity.activity_type === 'sports' && 'رياضي'}
+                          {activity.activity_type === 'cultural' && 'ثقافي'}
+                          {activity.activity_type === 'social' && 'اجتماعي'}
+                          {activity.activity_type === 'trip' && 'رحلة'}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    {activity.activity_type === 'academic' && 'أكاديمي'}
-                    {activity.activity_type === 'sports' && 'رياضي'}
-                    {activity.activity_type === 'cultural' && 'ثقافي'}
-                    {activity.activity_type === 'social' && 'اجتماعي'}
-                    {activity.activity_type === 'trip' && 'رحلة'}
-                  </div>
+                  </IOSListItem>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Trophy className="h-12 w-12 mx-auto mb-4 text-muted" />
+                  <p>لا توجد أنشطة حديثة</p>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                <Trophy className="h-12 w-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-                <p>لا توجد أنشطة حديثة</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              )}
+            </IOSList>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* iOS Tab Bar */}
+      <IOSTabBar activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 };

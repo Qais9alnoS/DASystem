@@ -4,10 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
+import { IOSSwitch } from '@/components/ui/ios-switch';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Settings, 
@@ -22,6 +20,9 @@ import {
 } from 'lucide-react';
 import { ChangePasswordForm } from '@/components/layout/ChangePasswordForm';
 import { systemApi } from '@/services/api';
+import { IOSNavbar } from '@/components/ui/ios-navbar';
+import { IOSTabBar } from '@/components/ui/ios-tabbar';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 
 interface ProjectSettings {
   // Basic Settings
@@ -64,6 +65,8 @@ interface ProjectSettings {
 const SettingsPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('general');
+  const [iosActiveTab, setIosActiveTab] = useState("settings");
 
   // Settings data - will be replaced with actual data from backend
   const [projectSettings, setProjectSettings] = useState<ProjectSettings>({
@@ -200,11 +203,10 @@ const SettingsPage: React.FC = () => {
         title: "نجاح",
         description: "تم حفظ الإعدادات بنجاح"
       });
-    } catch (error: any) {
-      console.error('Failed to save settings:', error);
+    } catch (error) {
       toast({
         title: "خطأ في حفظ الإعدادات",
-        description: error.message || "حدث خطأ أثناء حفظ إعدادات المشروع",
+        description: "حدث خطأ أثناء حفظ الإعدادات",
         variant: "destructive"
       });
     } finally {
@@ -213,538 +215,346 @@ const SettingsPage: React.FC = () => {
   };
 
   const handleResetSettings = () => {
-    // Reset to default settings
-    setProjectSettings({
-      // Basic Settings
-      projectName: "مدرسة الأمل الابتدائية",
-      schoolDays: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"],
-      periodsPerDay: 6,
-      periodDuration: 45, // minutes
-      breakDuration: 15, // minutes
-      
-      // Grade Settings
-      enabledGrades: {
-        primary: true,
-        preparatory: true,
-        secondary: true,
-        baccalaureate: true
-      },
-      
-      // Division Settings
-      defaultDivisionTypes: {
-        primary: "single", // single, boys_girls, custom
-        preparatory: "boys_girls",
-        secondary: "boys_girls", 
-        baccalaureate: "mixed" // mixed includes literary track
-      },
-      
-      // Scheduling Preferences
-      prioritizeTeacherWorkload: true,
-      allowEmptyPeriods: false,
-      distributeSubjectsEvenly: true,
-      preferMorningForImportantSubjects: true,
-      avoidLastPeriodForDifficultSubjects: true,
-      
-      // Advanced Settings
-      autoGenerateAfterChanges: false,
-      saveBackupBeforeGeneration: true,
-      maxGenerationAttempts: 100,
-      enableConflictResolution: true
-    });
-    setHasUnsavedChanges(false);
-    
-    toast({
-      title: "نجاح",
-      description: "تم إعادة تعيين الإعدادات إلى القيم الافتراضية"
-    });
+    if (savedSettings) {
+      mapApiSettingsToState(savedSettings.configurations);
+      setHasUnsavedChanges(false);
+      toast({
+        title: "تمت إعادة التعيين",
+        description: "تمت إعادة الإعدادات إلى القيم المحفوظة"
+      });
+    }
   };
 
-  const toggleSchoolDay = (day: string) => {
-    const currentDays = projectSettings.schoolDays;
-    const updatedDays = currentDays.includes(day)
-      ? currentDays.filter(d => d !== day)
-      : [...currentDays, day];
-    
-    updateSetting('schoolDays', updatedDays);
-  };
-
-  if (isLoading && !savedSettings) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">إعدادات المشروع</h1>
-          <p className="text-muted-foreground">
-            تخصيص إعدادات الجدولة والمشروع
-          </p>
-        </div>
-        
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={handleResetSettings}
-            disabled={!hasUnsavedChanges}
-          >
-            <RotateCcw className="h-4 w-4 ml-1" />
-            إعادة تعيين
-          </Button>
-          <Button 
-            onClick={handleSaveSettings}
-            disabled={!hasUnsavedChanges || isLoading}
-          >
-            {isLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
-                جاري الحفظ...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 ml-1" />
-                حفظ التغييرات
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-
-      {/* Unsaved Changes Warning */}
-      {hasUnsavedChanges && (
-        <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-orange-700">
-              <AlertTriangle className="h-5 w-5" />
-              <span className="font-medium">يوجد تغييرات غير محفوظة</span>
-            </div>
-            <p className="text-sm text-orange-600 mt-1">
-              تأكد من حفظ التغييرات قبل المغادرة
+    <div className="min-h-screen bg-background">
+      {/* iOS Navigation Bar */}
+      <IOSNavbar 
+        title="الإعدادات" 
+        largeTitle={true}
+      />
+      
+      <div className="p-4 pb-24">
+        {/* Header with save/reset buttons */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">
+              إعدادات النظام
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              تخصيص إعدادات المشروع والجدولة
             </p>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+          <div className="flex space-x-2 space-x-reverse">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetSettings}
+              disabled={!hasUnsavedChanges}
+              className="rounded-full"
+            >
+              <RotateCcw className="h-4 w-4 ml-2" />
+              إعادة تعيين
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveSettings}
+              disabled={!hasUnsavedChanges || isLoading}
+              className="rounded-full"
+            >
+              <Save className="h-4 w-4 ml-2" />
+              حفظ
+            </Button>
+          </div>
+        </div>
 
-      <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="basic">الإعدادات الأساسية</TabsTrigger>
-          <TabsTrigger value="schedule">إعدادات الجدولة</TabsTrigger>
-          <TabsTrigger value="grades">الصفوف والشعب</TabsTrigger>
-          <TabsTrigger value="password">كلمة المرور</TabsTrigger>
-          <TabsTrigger value="advanced">إعدادات متقدمة</TabsTrigger>
-        </TabsList>
+        {/* Segmented Control for Tabs */}
+        <div className="mb-6">
+          <SegmentedControl
+            options={[
+              { value: "general", label: "عامة" },
+              { value: "scheduling", label: "جدولة" },
+              { value: "advanced", label: "متقدمة" },
+              { value: "password", label: "كلمة المرور" }
+            ]}
+            value={activeTab}
+            onValueChange={setActiveTab}
+          />
+        </div>
 
-        {/* Basic Settings */}
-        <TabsContent value="basic" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                معلومات المشروع
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="projectName">اسم المشروع</Label>
-                <Input
-                  id="projectName"
-                  value={projectSettings.projectName}
-                  onChange={(e) => updateSetting('projectName', e.target.value)}
-                  className="text-right"
-                />
-              </div>
-            </CardContent>
-          </Card>
+        {activeTab === "general" && (
+          <div className="space-y-6">
+            {/* Basic Settings */}
+            <Card className="rounded-3xl border-0 shadow-ios">
+              <CardHeader className="p-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Settings className="h-5 w-5" />
+                  الإعدادات الأساسية
+                </CardTitle>
+                <CardDescription>
+                  إعدادات عامة للمدرسة والنظام
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="projectName">اسم المدرسة</Label>
+                  <Input
+                    id="projectName"
+                    value={projectSettings.projectName}
+                    onChange={(e) => updateSetting('projectName', e.target.value)}
+                    className="rounded-2xl"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>أيام الدراسة</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {SCHOOL_DAYS.map((day) => (
+                      <div key={day} className="flex items-center space-x-2 space-x-reverse">
+                        <IOSSwitch
+                          checked={projectSettings.schoolDays.includes(day)}
+                          onCheckedChange={(checked) => {
+                            const newDays = checked
+                              ? [...projectSettings.schoolDays, day]
+                              : projectSettings.schoolDays.filter(d => d !== day);
+                            updateSetting('schoolDays', newDays);
+                          }}
+                        />
+                        <Label className="text-sm">{day}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="periodsPerDay">عدد الحصص في اليوم</Label>
+                    <Input
+                      id="periodsPerDay"
+                      type="number"
+                      min="1"
+                      max="12"
+                      value={projectSettings.periodsPerDay}
+                      onChange={(e) => updateSetting('periodsPerDay', parseInt(e.target.value) || 6)}
+                      className="rounded-2xl"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="periodDuration">مدة الحصة (بالدقائق)</Label>
+                    <Input
+                      id="periodDuration"
+                      type="number"
+                      min="10"
+                      max="120"
+                      value={projectSettings.periodDuration}
+                      onChange={(e) => updateSetting('periodDuration', parseInt(e.target.value) || 45)}
+                      className="rounded-2xl"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="breakDuration">مدة الاستراحة (بالدقائق)</Label>
+                  <Input
+                    id="breakDuration"
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={projectSettings.breakDuration}
+                    onChange={(e) => updateSetting('breakDuration', parseInt(e.target.value) || 15)}
+                    className="rounded-2xl"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                أيام الدوام
+        {activeTab === "scheduling" && (
+          <div className="space-y-6">
+            {/* Scheduling Preferences */}
+            <Card className="rounded-3xl border-0 shadow-ios">
+              <CardHeader className="p-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Calendar className="h-5 w-5" />
+                  تفضيلات الجدولة
+                </CardTitle>
+                <CardDescription>
+                  تخصيص خوارزمية الجدولة
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">إعطاء الأولوية لحمولة المعلم</Label>
+                      <p className="text-sm text-muted-foreground">
+                        توزيع الحصص بشكل متساوٍ على المعلمين
+                      </p>
+                    </div>
+                    <IOSSwitch
+                      checked={projectSettings.prioritizeTeacherWorkload}
+                      onCheckedChange={(checked) => updateSetting('prioritizeTeacherWorkload', checked)}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">السماح بالفترات الفارغة</Label>
+                      <p className="text-sm text-muted-foreground">
+                        السماح بفترات فارغة في الجدول
+                      </p>
+                    </div>
+                    <IOSSwitch
+                      checked={projectSettings.allowEmptyPeriods}
+                      onCheckedChange={(checked) => updateSetting('allowEmptyPeriods', checked)}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">توزيع المواد بشكل متساوٍ</Label>
+                      <p className="text-sm text-muted-foreground">
+                        توزيع المواد على مدار الأسبوع
+                      </p>
+                    </div>
+                    <IOSSwitch
+                      checked={projectSettings.distributeSubjectsEvenly}
+                      onCheckedChange={(checked) => updateSetting('distributeSubjectsEvenly', checked)}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">تفضيل المواد المهمة في الصباح</Label>
+                      <p className="text-sm text-muted-foreground">
+                        وضع المواد المهمة في الحصص الأولى
+                      </p>
+                    </div>
+                    <IOSSwitch
+                      checked={projectSettings.preferMorningForImportantSubjects}
+                      onCheckedChange={(checked) => updateSetting('preferMorningForImportantSubjects', checked)}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">تجنب آخر حصة للمواد الصعبة</Label>
+                      <p className="text-sm text-muted-foreground">
+                        عدم وضع المواد الصعبة في آخر اليوم
+                      </p>
+                    </div>
+                    <IOSSwitch
+                      checked={projectSettings.avoidLastPeriodForDifficultSubjects}
+                      onCheckedChange={(checked) => updateSetting('avoidLastPeriodForDifficultSubjects', checked)}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === "advanced" && (
+          <div className="space-y-6">
+            {/* Advanced Settings */}
+            <Card className="rounded-3xl border-0 shadow-ios">
+              <CardHeader className="p-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Settings className="h-5 w-5" />
+                  الإعدادات المتقدمة
+                </CardTitle>
+                <CardDescription>
+                  إعدادات متقدمة للتحكم في النظام
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">توليد الجدول تلقائيًا بعد التغييرات</Label>
+                      <p className="text-sm text-muted-foreground">
+                        توليد الجدول تلقائيًا عند إجراء تغييرات
+                      </p>
+                    </div>
+                    <IOSSwitch
+                      checked={projectSettings.autoGenerateAfterChanges}
+                      onCheckedChange={(checked) => updateSetting('autoGenerateAfterChanges', checked)}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">حفظ نسخة احتياطية قبل التوليد</Label>
+                      <p className="text-sm text-muted-foreground">
+                        حفظ نسخة احتياطية قبل كل عملية توليد
+                      </p>
+                    </div>
+                    <IOSSwitch
+                      checked={projectSettings.saveBackupBeforeGeneration}
+                      onCheckedChange={(checked) => updateSetting('saveBackupBeforeGeneration', checked)}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="maxGenerationAttempts">الحد الأقصى لمحاولات التوليد</Label>
+                    <Input
+                      id="maxGenerationAttempts"
+                      type="number"
+                      min="1"
+                      max="1000"
+                      value={projectSettings.maxGenerationAttempts}
+                      onChange={(e) => updateSetting('maxGenerationAttempts', parseInt(e.target.value) || 100)}
+                      className="rounded-2xl"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base">تمكين حل التضارب</Label>
+                      <p className="text-sm text-muted-foreground">
+                        تفعيل خوارزمية حل التضارب تلقائيًا
+                      </p>
+                    </div>
+                    <IOSSwitch
+                      checked={projectSettings.enableConflictResolution}
+                      onCheckedChange={(checked) => updateSetting('enableConflictResolution', checked)}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === "password" && (
+          <Card className="rounded-3xl border-0 shadow-ios">
+            <CardHeader className="p-4">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Users className="h-5 w-5" />
+                تغيير كلمة المرور
               </CardTitle>
               <CardDescription>
-                حدد أيام الدوام المدرسي (يجب اختيار 5 أيام على الأقل)
+                تحديث كلمة مرور الحساب
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {SCHOOL_DAYS.map((day) => (
-                  <Button
-                    key={day}
-                    variant={projectSettings.schoolDays.includes(day) ? "default" : "outline"}
-                    onClick={() => toggleSchoolDay(day)}
-                    className="justify-start"
-                  >
-                    {day}
-                  </Button>
-                ))}
-              </div>
+            <CardContent className="p-4">
+              <ChangePasswordForm />
             </CardContent>
           </Card>
+        )}
+      </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                إعدادات الحصص
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="periodsPerDay">عدد الحصص في اليوم</Label>
-                <Input
-                  id="periodsPerDay"
-                  type="number"
-                  min="1"
-                  max="12"
-                  value={projectSettings.periodsPerDay}
-                  onChange={(e) => updateSetting('periodsPerDay', parseInt(e.target.value) || 6)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="periodDuration">مدة الحصة (بالدقائق)</Label>
-                <Input
-                  id="periodDuration"
-                  type="number"
-                  min="10"
-                  max="120"
-                  value={projectSettings.periodDuration}
-                  onChange={(e) => updateSetting('periodDuration', parseInt(e.target.value) || 45)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="breakDuration">مدة الاستراحة (بالدقائق)</Label>
-                <Input
-                  id="breakDuration"
-                  type="number"
-                  min="5"
-                  max="60"
-                  value={projectSettings.breakDuration}
-                  onChange={(e) => updateSetting('breakDuration', parseInt(e.target.value) || 15)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Schedule Settings */}
-        <TabsContent value="schedule" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                تفضيلات الجدولة
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>إعطاء الأولوية لتحميل المعلم</Label>
-                  <p className="text-sm text-muted-foreground">
-                    توزيع الحصص بشكل متساوي على المعلمين
-                  </p>
-                </div>
-                <Switch
-                  checked={projectSettings.prioritizeTeacherWorkload}
-                  onCheckedChange={(checked) => updateSetting('prioritizeTeacherWorkload', checked)}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>السماح بالفترات الفارغة</Label>
-                  <p className="text-sm text-muted-foreground">
-                    السماح بإنشاء جداول تحتوي على فترات فارغة
-                  </p>
-                </div>
-                <Switch
-                  checked={projectSettings.allowEmptyPeriods}
-                  onCheckedChange={(checked) => updateSetting('allowEmptyPeriods', checked)}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>توزيع المواد بشكل متساوي</Label>
-                  <p className="text-sm text-muted-foreground">
-                    توزيع المواد على مدار الأسبوع بشكل متساوي
-                  </p>
-                </div>
-                <Switch
-                  checked={projectSettings.distributeSubjectsEvenly}
-                  onCheckedChange={(checked) => updateSetting('distributeSubjectsEvenly', checked)}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>تفضيل الصباح للمواد المهمة</Label>
-                  <p className="text-sm text-muted-foreground">
-                    وضع المواد المهمة في الحصص الصباحية
-                  </p>
-                </div>
-                <Switch
-                  checked={projectSettings.preferMorningForImportantSubjects}
-                  onCheckedChange={(checked) => updateSetting('preferMorningForImportantSubjects', checked)}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>تجنب آخر حصة للمواد الصعبة</Label>
-                  <p className="text-sm text-muted-foreground">
-                    عدم وضع المواد الصعبة في آخر الحصص
-                  </p>
-                </div>
-                <Switch
-                  checked={projectSettings.avoidLastPeriodForDifficultSubjects}
-                  onCheckedChange={(checked) => updateSetting('avoidLastPeriodForDifficultSubjects', checked)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Grades Settings */}
-        <TabsContent value="grades" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <GraduationCap className="h-5 w-5" />
-                تفعيل المراحل الدراسية
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>المرحلة الابتدائية</Label>
-                  <p className="text-sm text-muted-foreground">
-                    الصفوف من 1 إلى 6
-                  </p>
-                </div>
-                <Switch
-                  checked={projectSettings.enabledGrades.primary}
-                  onCheckedChange={(checked) => updateSetting('enabledGrades.primary', checked)}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>المرحلة الإعدادية</Label>
-                  <p className="text-sm text-muted-foreground">
-                    الصفوف من 7 إلى 9
-                  </p>
-                </div>
-                <Switch
-                  checked={projectSettings.enabledGrades.preparatory}
-                  onCheckedChange={(checked) => updateSetting('enabledGrades.preparatory', checked)}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>المرحلة الثانوية</Label>
-                  <p className="text-sm text-muted-foreground">
-                    الصفوف من 10 إلى 11
-                  </p>
-                </div>
-                <Switch
-                  checked={projectSettings.enabledGrades.secondary}
-                  onCheckedChange={(checked) => updateSetting('enabledGrades.secondary', checked)}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>المرحلة البكالوريا</Label>
-                  <p className="text-sm text-muted-foreground">
-                    الصف 12
-                  </p>
-                </div>
-                <Switch
-                  checked={projectSettings.enabledGrades.baccalaureate}
-                  onCheckedChange={(checked) => updateSetting('enabledGrades.baccalaureate', checked)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                أنواع الشعب الافتراضية
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="primaryDivision">المرحلة الابتدائية</Label>
-                <Select
-                  value={projectSettings.defaultDivisionTypes.primary}
-                  onValueChange={(value) => updateSetting('defaultDivisionTypes.primary', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="single">شعبة واحدة</SelectItem>
-                    <SelectItem value="boys_girls">شباب وبنات</SelectItem>
-                    <SelectItem value="custom">مخصص</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label htmlFor="preparatoryDivision">المرحلة الإعدادية</Label>
-                <Select
-                  value={projectSettings.defaultDivisionTypes.preparatory}
-                  onValueChange={(value) => updateSetting('defaultDivisionTypes.preparatory', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="single">شعبة واحدة</SelectItem>
-                    <SelectItem value="boys_girls">شباب وبنات</SelectItem>
-                    <SelectItem value="custom">مخصص</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label htmlFor="secondaryDivision">المرحلة الثانوية</Label>
-                <Select
-                  value={projectSettings.defaultDivisionTypes.secondary}
-                  onValueChange={(value) => updateSetting('defaultDivisionTypes.secondary', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="single">شعبة واحدة</SelectItem>
-                    <SelectItem value="boys_girls">شباب وبنات</SelectItem>
-                    <SelectItem value="custom">مخصص</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Label htmlFor="baccalaureateDivision">المرحلة البكالوريا</Label>
-                <Select
-                  value={projectSettings.defaultDivisionTypes.baccalaureate}
-                  onValueChange={(value) => updateSetting('defaultDivisionTypes.baccalaureate', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mixed">مختلط (علمي وآداب)</SelectItem>
-                    <SelectItem value="scientific">علمي فقط</SelectItem>
-                    <SelectItem value="literary">آداب فقط</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Password Settings */}
-        <TabsContent value="password">
-          <ChangePasswordForm />
-        </TabsContent>
-
-        {/* Advanced Settings */}
-        <TabsContent value="advanced" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                إعدادات متقدمة
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>إنشاء جدول تلقائي بعد التغييرات</Label>
-                  <p className="text-sm text-muted-foreground">
-                    إنشاء جدول جديد تلقائيًا عند تغيير الإعدادات
-                  </p>
-                </div>
-                <Switch
-                  checked={projectSettings.autoGenerateAfterChanges}
-                  onCheckedChange={(checked) => updateSetting('autoGenerateAfterChanges', checked)}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>حفظ نسخة احتياطية قبل الإنشاء</Label>
-                  <p className="text-sm text-muted-foreground">
-                    حفظ نسخة احتياطية من الجدول الحالي قبل إنشاء جدول جديد
-                  </p>
-                </div>
-                <Switch
-                  checked={projectSettings.saveBackupBeforeGeneration}
-                  onCheckedChange={(checked) => updateSetting('saveBackupBeforeGeneration', checked)}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>تمكين حل التعارضات</Label>
-                  <p className="text-sm text-muted-foreground">
-                    محاولة حل التعارضات تلقائيًا أثناء إنشاء الجدول
-                  </p>
-                </div>
-                <Switch
-                  checked={projectSettings.enableConflictResolution}
-                  onCheckedChange={(checked) => updateSetting('enableConflictResolution', checked)}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div>
-                <Label htmlFor="maxGenerationAttempts">الحد الأقصى لمحاولات الإنشاء</Label>
-                <Input
-                  id="maxGenerationAttempts"
-                  type="number"
-                  min="1"
-                  max="1000"
-                  value={projectSettings.maxGenerationAttempts}
-                  onChange={(e) => updateSetting('maxGenerationAttempts', parseInt(e.target.value) || 100)}
-                />
-                <p className="text-sm text-muted-foreground mt-1">
-                  عدد المحاولات القصوى لإنشاء جدول مثالي
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* iOS Tab Bar */}
+      <IOSTabBar activeTab={iosActiveTab} onTabChange={setIosActiveTab} />
     </div>
   );
 };

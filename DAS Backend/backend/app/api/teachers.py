@@ -16,7 +16,7 @@ from ..schemas.teachers import (
 )
 from ..core.dependencies import get_current_user, get_school_user, get_director_user, get_finance_user
 
-router = APIRouter(prefix="/teachers", tags=["teachers"])
+router = APIRouter(tags=["teachers"])
 
 # Teacher CRUD Operations
 @router.get("/", response_model=List[TeacherResponse])
@@ -31,7 +31,7 @@ async def get_teachers(
     """Get all teachers with optional filtering"""
     query = db.query(Teacher)
     
-    if academic_year_id:
+    if academic_year_id is not None:
         query = query.filter(Teacher.academic_year_id == academic_year_id)
     
     if is_active is not None:
@@ -50,7 +50,7 @@ async def create_teacher(
     # Check if teacher with same name already exists in the same academic year
     existing_teacher = db.query(Teacher).filter(
         and_(
-            Teacher.full_name == teacher.full_name,
+            Teacher.full_name == (teacher.first_name + " " + teacher.last_name),
             Teacher.academic_year_id == teacher.academic_year_id
         )
     ).first()
@@ -58,7 +58,10 @@ async def create_teacher(
     if existing_teacher:
         raise HTTPException(status_code=400, detail="Teacher with this name already exists in this academic year")
     
-    db_teacher = Teacher(**teacher.dict())
+    # Create full_name from first_name and last_name
+    teacher_data = teacher.dict()
+    teacher_data['full_name'] = teacher.first_name + " " + teacher.last_name
+    db_teacher = Teacher(**teacher_data)
     db.add(db_teacher)
     db.commit()
     db.refresh(db_teacher)
@@ -128,7 +131,7 @@ async def get_teacher_assignments(
     
     query = db.query(TeacherAssignment).filter(TeacherAssignment.teacher_id == teacher_id)
     
-    if academic_year_id:
+    if academic_year_id is not None:
         query = query.join(Teacher).filter(Teacher.academic_year_id == academic_year_id)
     
     assignments = query.all()
@@ -139,13 +142,21 @@ async def get_teacher_assignments(
         class_info = db.query(Class).filter(Class.id == assignment.class_id).first()
         subject_info = db.query(Subject).filter(Subject.id == assignment.subject_id).first()
         
+        class_name = "Unknown"
+        if class_info is not None:
+            class_name = f"{class_info.grade_level} {class_info.grade_number}"
+            
+        subject_name = "Unknown"
+        if subject_info is not None:
+            subject_name = subject_info.subject_name
+        
         result.append({
             "id": assignment.id,
             "teacher_id": assignment.teacher_id,
             "class_id": assignment.class_id,
-            "class_name": f"{class_info.grade_level} {class_info.grade_number}" if class_info else "Unknown",
+            "class_name": class_name,
             "subject_id": assignment.subject_id,
-            "subject_name": subject_info.subject_name if subject_info else "Unknown",
+            "subject_name": subject_name,
             "section": assignment.section,
             "created_at": assignment.created_at,
             "updated_at": assignment.updated_at
@@ -177,8 +188,11 @@ async def assign_teacher_subject(
     class_obj = db.query(Class).filter(Class.id == class_id).first()
     subject_obj = db.query(Subject).filter(Subject.id == subject_id).first()
     
-    if not class_obj or not subject_obj:
-        raise HTTPException(status_code=404, detail="Class or Subject not found")
+    if not class_obj:
+        raise HTTPException(status_code=404, detail="Class not found")
+        
+    if not subject_obj:
+        raise HTTPException(status_code=404, detail="Subject not found")
     
     # Check if assignment already exists
     existing_assignment = db.query(TeacherAssignment).filter(
@@ -193,25 +207,34 @@ async def assign_teacher_subject(
     if existing_assignment:
         raise HTTPException(status_code=400, detail="This assignment already exists")
     
-    # Create assignment
-    assignment = TeacherAssignment(
-        teacher_id=teacher_id,
-        class_id=class_id,
-        subject_id=subject_id,
-        section=section
-    )
+    # Create assignment using dict unpacking to avoid Pyright issues
+    assignment_dict = {
+        "teacher_id": teacher_id,
+        "class_id": class_id,
+        "subject_id": subject_id,
+        "section": section
+    }
+    assignment = TeacherAssignment(**assignment_dict)
     
     db.add(assignment)
     db.commit()
     db.refresh(assignment)
     
+    class_name = "Unknown"
+    if class_obj is not None:
+        class_name = f"{class_obj.grade_level} {class_obj.grade_number}"
+        
+    subject_name = "Unknown"
+    if subject_obj is not None:
+        subject_name = subject_obj.subject_name
+    
     return {
         "id": assignment.id,
         "teacher_id": assignment.teacher_id,
         "class_id": assignment.class_id,
-        "class_name": f"{class_obj.grade_level} {class_obj.grade_number}",
+        "class_name": class_name,
         "subject_id": assignment.subject_id,
-        "subject_name": subject_obj.subject_name,
+        "subject_name": subject_name,
         "section": assignment.section,
         "message": "Subject assigned successfully"
     }
@@ -274,7 +297,7 @@ async def record_teacher_attendance(
     existing_attendance = db.query(TeacherAttendance).filter(
         and_(
             TeacherAttendance.teacher_id == teacher_id,
-            TeacherAttendance.attendance_date == attendance.attendance_date
+            TeacherAttendance.attendance_date == attendance.date
         )
     ).first()
     
@@ -284,6 +307,7 @@ async def record_teacher_attendance(
     # Create attendance record
     attendance_data = attendance.dict()
     attendance_data["teacher_id"] = teacher_id
+    attendance_data["attendance_date"] = attendance_data.pop("date")  # Rename date to attendance_date
     
     db_attendance = TeacherAttendance(**attendance_data)
     db.add(db_attendance)
@@ -328,7 +352,7 @@ async def get_teacher_finance_records(
     
     query = db.query(TeacherFinance).filter(TeacherFinance.teacher_id == teacher_id)
     
-    if academic_year_id:
+    if academic_year_id is not None:
         query = query.filter(TeacherFinance.academic_year_id == academic_year_id)
     
     finance_records = query.order_by(TeacherFinance.created_at.desc()).all()
@@ -366,9 +390,9 @@ async def create_teacher_finance_record(
     
     # Calculate total amount if not provided
     if not finance_data.get("total_amount"):
-        base_salary = finance_data.get("base_salary", Decimal('0.00'))
-        bonuses = finance_data.get("bonuses", Decimal('0.00'))
-        deductions = finance_data.get("deductions", Decimal('0.00'))
+        base_salary = Decimal(finance_data.get("base_salary", 0))
+        bonuses = Decimal(finance_data.get("bonuses", 0))
+        deductions = Decimal(finance_data.get("deductions", 0))
         finance_data["total_amount"] = base_salary + bonuses - deductions
     
     db_finance = TeacherFinance(**finance_data)
@@ -393,9 +417,9 @@ async def update_teacher_finance_record(
     
     # Recalculate total amount if base salary, bonuses, or deductions are updated
     if any(field in update_data for field in ["base_salary", "bonuses", "deductions"]):
-        base_salary = update_data.get("base_salary", finance_record.base_salary)
-        bonuses = update_data.get("bonuses", finance_record.bonuses)
-        deductions = update_data.get("deductions", finance_record.deductions)
+        base_salary = Decimal(update_data.get("base_salary", finance_record.base_salary or 0))
+        bonuses = Decimal(update_data.get("bonuses", finance_record.bonuses or 0))
+        deductions = Decimal(update_data.get("deductions", finance_record.deductions or 0))
         update_data["total_amount"] = base_salary + bonuses - deductions
     
     for field, value in update_data.items():
@@ -421,7 +445,7 @@ async def get_teacher_schedule(
     
     # Get teacher assignments
     assignment_query = db.query(TeacherAssignment).filter(TeacherAssignment.teacher_id == teacher_id)
-    if academic_year_id:
+    if academic_year_id is not None:
         assignment_query = assignment_query.join(Teacher).filter(Teacher.academic_year_id == academic_year_id)
     
     assignments = assignment_query.all()
@@ -442,16 +466,24 @@ async def get_teacher_schedule(
             )
         ).all()
         
+        class_name = "Unknown"
+        if class_info is not None:
+            class_name = f"{class_info.grade_level} {class_info.grade_number}"
+            
+        subject_name = "Unknown"
+        if subject_info is not None:
+            subject_name = subject_info.subject_name
+        
         schedule_info.append({
             "assignment_id": assignment.id,
-            "class": f"{class_info.grade_level} {class_info.grade_number}" if class_info else "Unknown",
-            "subject": subject_info.subject_name if subject_info else "Unknown",
+            "class": class_name,
+            "subject": subject_name,
             "section": assignment.section,
             "schedule_entries": [
                 {
-                    "day_of_week": entry.day_of_week,
-                    "period_number": entry.period_number,
-                    "session_type": entry.session_type
+                    "day_of_week": entry.day_of_week if entry.day_of_week is not None else 0,
+                    "period_number": entry.period_number if entry.period_number is not None else 0,
+                    "session_type": entry.session_type if entry.session_type is not None else ""
                 }
                 for entry in schedule_entries
             ]
@@ -459,7 +491,7 @@ async def get_teacher_schedule(
     
     return {
         "teacher_id": teacher_id,
-        "teacher_name": teacher.full_name,
+        "teacher_name": teacher.full_name if teacher is not None else "Unknown",
         "assignments": schedule_info
     }
 
@@ -476,7 +508,7 @@ async def search_teachers(
     """Search teachers by name, phone, or nationality"""
     query = db.query(Teacher).filter(Teacher.is_active == True)
     
-    if academic_year_id:
+    if academic_year_id is not None:
         query = query.filter(Teacher.academic_year_id == academic_year_id)
     
     # Search in multiple fields
@@ -490,3 +522,4 @@ async def search_teachers(
     query = query.filter(search_filter)
     teachers = query.offset(skip).limit(limit).all()
     return teachers
+

@@ -2,18 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Search, Plus, Users, FileText, Filter, BookOpen, Loader2 } from 'lucide-react';
 import { TeacherRegistrationForm, TeachersList } from '@/components/teachers';
 import { teachersApi } from '@/services/api';
 import { Teacher } from '@/types/school';
+import { IOSNavbar } from '@/components/ui/ios-navbar';
+import { IOSTabBar } from '@/components/ui/ios-tabbar';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 
 const TeachersPage = () => {
     const [activeTab, setActiveTab] = useState('list');
     const [searchQuery, setSearchQuery] = useState('');
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [loading, setLoading] = useState(true);
+    const [iosActiveTab, setIosActiveTab] = useState("teachers");
     const { toast } = useToast();
 
     // Fetch teachers statistics
@@ -55,156 +58,127 @@ const TeachersPage = () => {
     }
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-foreground">
-                        إدارة المعلمين
-                    </h1>
-                    <p className="text-muted-foreground mt-2">
-                        تسجيل ومتابعة المعلمين في النظام
-                    </p>
-                </div>
-                <Button
-                    onClick={() => setActiveTab('register')}
-                    className="gap-2 btn-premium"
-                >
-                    <Plus className="h-4 w-4" />
-                    تسجيل معلم جديد
-                </Button>
-            </div>
-
-            {/* Teacher Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card>
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-muted-foreground">
-                                    إجمالي المعلمين
-                                </p>
-                                <p className="text-2xl font-bold">{totalTeachers}</p>
-                                <p className="text-xs text-muted-foreground">
-                                    معلم مسجل في النظام
-                                </p>
-                            </div>
-                            <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/20">
-                                <Users className="h-6 w-6 text-blue-600" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-muted-foreground">
-                                    المعلمين النشطين
-                                </p>
-                                <p className="text-2xl font-bold">{activeTeachers}</p>
-                                <p className="text-xs text-muted-foreground">
-                                    معلم نشط حالياً
-                                </p>
-                            </div>
-                            <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/20">
-                                <BookOpen className="h-6 w-6 text-green-600" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-muted-foreground">
-                                    مستخدمو النقل
-                                </p>
-                                <p className="text-2xl font-bold">{busUsers}</p>
-                                <p className="text-xs text-muted-foreground">
-                                    معلم يستخدم النقل
-                                </p>
-                            </div>
-                            <div className="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900/20">
-                                <span className="text-lg">🚌</span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-muted-foreground">
-                                    المشي
-                                </p>
-                                <p className="text-2xl font-bold">{walkingUsers}</p>
-                                <p className="text-xs text-muted-foreground">
-                                    معلم يمشي إلى المدرسة
-                                </p>
-                            </div>
-                            <div className="p-3 rounded-full bg-purple-100 dark:bg-purple-900/20">
-                                <span className="text-lg">🚶</span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Main Content */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="list" className="gap-2">
-                        <Users className="h-4 w-4" />
-                        قائمة المعلمين
-                    </TabsTrigger>
-                    <TabsTrigger value="register" className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        تسجيل جديد
-                    </TabsTrigger>
-                    <TabsTrigger value="assignments" className="gap-2">
-                        <BookOpen className="h-4 w-4" />
-                        التوزيعات
-                    </TabsTrigger>
-                    <TabsTrigger value="reports" className="gap-2">
-                        <FileText className="h-4 w-4" />
-                        التقارير
-                    </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="list" className="space-y-6">
-                    {/* Search and Filters */}
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center space-x-4 space-x-reverse">
-                                <div className="flex-1 relative">
-                                    <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="البحث في المعلمين..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pr-10"
-                                    />
+        <div className="min-h-screen bg-background">
+            {/* iOS Navigation Bar */}
+            <IOSNavbar 
+                title="إدارة المعلمين" 
+                largeTitle={true}
+            />
+            
+            <div className="p-4 pb-24">
+                {/* Teacher Stats */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                    <Card className="rounded-3xl border-0 shadow-ios">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                        إجمالي المعلمين
+                                    </p>
+                                    <p className="text-xl font-bold">{totalTeachers}</p>
                                 </div>
-                                <Button variant="outline" className="gap-2">
-                                    <Filter className="h-4 w-4" />
-                                    تصفية
-                                </Button>
+                                <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/20">
+                                    <Users className="h-5 w-5 text-blue-600" />
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Teachers List */}
-                    <TeachersList searchQuery={searchQuery} />
-                </TabsContent>
+                    <Card className="rounded-3xl border-0 shadow-ios">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                        المعلمين النشطين
+                                    </p>
+                                    <p className="text-xl font-bold">{activeTeachers}</p>
+                                </div>
+                                <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/20">
+                                    <BookOpen className="h-5 w-5 text-green-600" />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                <TabsContent value="register" className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
+                    <Card className="rounded-3xl border-0 shadow-ios">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                        مستخدمو النقل
+                                    </p>
+                                    <p className="text-xl font-bold">{busUsers}</p>
+                                </div>
+                                <div className="p-2 rounded-full bg-yellow-100 dark:bg-yellow-900/20">
+                                    <span className="text-base">🚌</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="rounded-3xl border-0 shadow-ios">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                        المشي
+                                    </p>
+                                    <p className="text-xl font-bold">{walkingUsers}</p>
+                                </div>
+                                <div className="p-2 rounded-full bg-purple-100 dark:bg-purple-900/20">
+                                    <span className="text-base">🚶</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Segmented Control for Tabs */}
+                <div className="mb-6">
+                    <SegmentedControl
+                        options={[
+                            { value: "list", label: "المعلمين" },
+                            { value: "register", label: "تسجيل" },
+                            { value: "assignments", label: "توزيعات" },
+                            { value: "reports", label: "تقارير" }
+                        ]}
+                        value={activeTab}
+                        onValueChange={setActiveTab}
+                    />
+                </div>
+
+                {activeTab === "list" && (
+                    <div className="space-y-6">
+                        {/* Search and Filters */}
+                        <Card className="rounded-3xl border-0 shadow-ios">
+                            <CardContent className="p-4">
+                                <div className="flex items-center space-x-3 space-x-reverse">
+                                    <div className="flex-1 relative">
+                                        <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="البحث في المعلمين..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="pr-10 rounded-2xl"
+                                        />
+                                    </div>
+                                    <Button variant="outline" className="gap-2 rounded-full">
+                                        <Filter className="h-4 w-4" />
+                                        تصفية
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Teachers List */}
+                        <TeachersList searchQuery={searchQuery} />
+                    </div>
+                )}
+
+                {activeTab === "register" && (
+                    <Card className="rounded-3xl border-0 shadow-ios">
+                        <CardHeader className="p-4">
+                            <CardTitle className="flex items-center gap-2 text-lg">
                                 <Users className="h-5 w-5" />
                                 تسجيل معلم جديد
                             </CardTitle>
@@ -216,12 +190,12 @@ const TeachersPage = () => {
                             <TeacherRegistrationForm />
                         </CardContent>
                     </Card>
-                </TabsContent>
+                )}
 
-                <TabsContent value="assignments" className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>توزيعات المعلمين</CardTitle>
+                {activeTab === "assignments" && (
+                    <Card className="rounded-3xl border-0 shadow-ios">
+                        <CardHeader className="p-4">
+                            <CardTitle className="text-lg">توزيعات المعلمين</CardTitle>
                             <CardDescription>
                                 توزيع المعلمين على المواد والصفوف
                             </CardDescription>
@@ -234,12 +208,12 @@ const TeachersPage = () => {
                             </div>
                         </CardContent>
                     </Card>
-                </TabsContent>
+                )}
 
-                <TabsContent value="reports" className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>تقارير المعلمين</CardTitle>
+                {activeTab === "reports" && (
+                    <Card className="rounded-3xl border-0 shadow-ios">
+                        <CardHeader className="p-4">
+                            <CardTitle className="text-lg">تقارير المعلمين</CardTitle>
                             <CardDescription>
                                 تقارير وإحصائيات شاملة عن المعلمين
                             </CardDescription>
@@ -252,8 +226,11 @@ const TeachersPage = () => {
                             </div>
                         </CardContent>
                     </Card>
-                </TabsContent>
-            </Tabs>
+                )}
+            </div>
+
+            {/* iOS Tab Bar */}
+            <IOSTabBar activeTab={iosActiveTab} onTabChange={setIosActiveTab} />
         </div>
     );
 };

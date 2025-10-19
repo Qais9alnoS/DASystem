@@ -24,9 +24,17 @@ class ConstraintSolver:
             bool: True if constraint is violated, False otherwise
         """
         # Check if subject, day, and period match the forbidden constraint
-        if (schedule_item.get("subject_id") == constraint.get("subject_id") and
-            schedule_item.get("day_of_week") == constraint.get("day_of_week") and
-            schedule_item.get("period_number") == constraint.get("period_number")):
+        subject_id_match = (schedule_item.get("subject_id") == constraint.get("subject_id")
+                           if schedule_item.get("subject_id") is not None and constraint.get("subject_id") is not None
+                           else False)
+        day_match = (schedule_item.get("day_of_week") == constraint.get("day_of_week")
+                    if schedule_item.get("day_of_week") is not None and constraint.get("day_of_week") is not None
+                    else False)
+        period_match = (schedule_item.get("period_number") == constraint.get("period_number")
+                       if schedule_item.get("period_number") is not None and constraint.get("period_number") is not None
+                       else False)
+        
+        if subject_id_match and day_match and period_match:
             return True
         return False
     
@@ -41,8 +49,21 @@ class ConstraintSolver:
             bool: True if constraint is satisfied, False otherwise
         """
         # Check if subject matches and period is within required range
-        if (schedule_item.get("subject_id") == constraint.get("subject_id") and
-            constraint.get("time_range_start") <= schedule_item.get("period_number") <= constraint.get("time_range_end")):
+        subject_match = (schedule_item.get("subject_id") == constraint.get("subject_id")
+                        if schedule_item.get("subject_id") is not None and constraint.get("subject_id") is not None
+                        else False)
+        
+        period_number = schedule_item.get("period_number")
+        time_range_start = constraint.get("time_range_start")
+        time_range_end = constraint.get("time_range_end")
+        
+        period_in_range = False
+        if (period_number is not None and 
+            time_range_start is not None and 
+            time_range_end is not None):
+            period_in_range = time_range_start <= period_number <= time_range_end
+        
+        if subject_match and period_in_range:
             return True
         return False
     
@@ -58,15 +79,23 @@ class ConstraintSolver:
             bool: True if constraint is violated, False otherwise
         """
         max_consecutive = constraint.get("max_consecutive_periods", 2)
+        if max_consecutive is None:
+            max_consecutive = 2
         subject_id = constraint.get("subject_id")
+        if subject_id is None:
+            return False
         
         # Group periods by day for the specific class and subject
         day_periods = {}
         for item in schedule:
-            if (item.get("class_id") == class_id and 
-                item.get("subject_id") == subject_id):
-                day = item.get("day_of_week")
-                period = item.get("period_number")
+            item_class_id = item.get("class_id")
+            item_subject_id = item.get("subject_id")
+            day = item.get("day_of_week")
+            period = item.get("period_number")
+            
+            if (item_class_id is not None and item_subject_id is not None and
+                item_class_id == class_id and item_subject_id == subject_id and
+                day is not None and period is not None):
                 if day not in day_periods:
                     day_periods[day] = []
                 day_periods[day].append(period)
@@ -78,12 +107,13 @@ class ConstraintSolver:
                 periods.sort()
                 consecutive_count = 1
                 for i in range(1, len(periods)):
-                    if periods[i] == periods[i-1] + 1:
-                        consecutive_count += 1
-                        if consecutive_count > max_consecutive:
-                            return True
-                    else:
-                        consecutive_count = 1
+                    if periods[i] is not None and periods[i-1] is not None:
+                        if periods[i] == periods[i-1] + 1:
+                            consecutive_count += 1
+                            if consecutive_count > max_consecutive:
+                                return True
+                        else:
+                            consecutive_count = 1
         
         return False
     
@@ -100,6 +130,11 @@ class ConstraintSolver:
         day_of_week = assignment.get("day_of_week")
         period_number = assignment.get("period_number")
         
+        # Check if required values are present
+        if day_of_week is None or period_number is None:
+            # If no specific availability data, assume available
+            return True
+        
         # Convert day_of_week to string key (1=monday, 2=tuesday, etc.)
         day_keys = {
             1: "monday",
@@ -112,7 +147,7 @@ class ConstraintSolver:
         }
         
         day_key = day_keys.get(day_of_week, "")
-        if day_key in teacher.free_time_slots:
+        if day_key and hasattr(teacher, 'free_time_slots') and day_key in teacher.free_time_slots:
             return period_number in teacher.free_time_slots[day_key]
         
         # If no specific availability data, assume available
@@ -136,8 +171,9 @@ class ConstraintSolver:
             day = assignment.get("day_of_week")
             period = assignment.get("period_number")
             
-            if teacher_id and day and period:
+            if teacher_id is not None and day is not None and period is not None:
                 time_key = (teacher_id, day, period)
+                class_id = assignment.get("class_id")
                 if time_key in teacher_time_slots:
                     # Conflict detected
                     conflicts.append({
@@ -146,10 +182,10 @@ class ConstraintSolver:
                         "day_of_week": day,
                         "period_number": period,
                         "class1_id": teacher_time_slots[time_key],
-                        "class2_id": assignment.get("class_id")
+                        "class2_id": class_id
                     })
-                else:
-                    teacher_time_slots[time_key] = assignment.get("class_id")
+                elif class_id is not None:
+                    teacher_time_slots[time_key] = class_id
         
         return conflicts
     
@@ -171,8 +207,9 @@ class ConstraintSolver:
             day = assignment.get("day_of_week")
             period = assignment.get("period_number")
             
-            if class_id and day and period:
+            if class_id is not None and day is not None and period is not None:
                 time_key = (class_id, day, period)
+                subject_id = assignment.get("subject_id")
                 if time_key in class_time_slots:
                     # Conflict detected
                     conflicts.append({
@@ -181,10 +218,10 @@ class ConstraintSolver:
                         "day_of_week": day,
                         "period_number": period,
                         "subject1_id": class_time_slots[time_key],
-                        "subject2_id": assignment.get("subject_id")
+                        "subject2_id": subject_id
                     })
-                else:
-                    class_time_slots[time_key] = assignment.get("subject_id")
+                elif subject_id is not None:
+                    class_time_slots[time_key] = subject_id
         
         return conflicts
     
@@ -204,10 +241,10 @@ class ConstraintSolver:
         # Count periods per subject for the class
         subject_counts = {}
         for assignment in schedule:
-            if assignment.get("class_id") == class_id:
-                subject_id = assignment.get("subject_id")
-                if subject_id:
-                    subject_counts[subject_id] = subject_counts.get(subject_id, 0) + 1
+            assignment_class_id = assignment.get("class_id")
+            subject_id = assignment.get("subject_id")
+            if assignment_class_id is not None and assignment_class_id == class_id and subject_id is not None:
+                subject_counts[subject_id] = subject_counts.get(subject_id, 0) + 1
         
         # Check against requirements
         for subject_id, required_periods in subject_requirements.items():
@@ -232,14 +269,26 @@ class ConstraintSolver:
         Returns:
             Dict: Validation results
         """
+        # Count unique classes and teachers safely
+        unique_classes = set()
+        unique_teachers = set()
+        
+        for a in schedule:
+            class_id = a.get("class_id")
+            teacher_id = a.get("teacher_id")
+            if class_id is not None:
+                unique_classes.add(class_id)
+            if teacher_id is not None:
+                unique_teachers.add(teacher_id)
+        
         return {
             "is_valid": True,
             "violations": [],
             "warnings": [],
             "statistics": {
                 "total_assignments": len(schedule),
-                "unique_classes": len(set(a.get("class_id") for a in schedule if a.get("class_id"))),
-                "unique_teachers": len(set(a.get("teacher_id") for a in schedule if a.get("teacher_id")))
+                "unique_classes": len(unique_classes),
+                "unique_teachers": len(unique_teachers)
             }
         }
     
@@ -253,8 +302,12 @@ class ConstraintSolver:
         Returns:
             Dict: Compliance results
         """
+        subjects = requirements.get("subjects", {})
+        if subjects is None:
+            subjects = {}
+        
         return {
             "compliant": True,
-            "requirements_met": len(requirements.get("subjects", {})),
-            "requirements_total": len(requirements.get("subjects", {}))
+            "requirements_met": len(subjects),
+            "requirements_total": len(subjects)
         }

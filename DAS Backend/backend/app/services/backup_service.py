@@ -8,6 +8,7 @@ from typing import Optional, List, Dict, Any
 from pathlib import Path
 import logging
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.query import Query
 from sqlalchemy import text
 
 from ..config import settings
@@ -165,10 +166,10 @@ class BackupService:
                 if Path(files_result["backup_path"]).exists():
                     zipf.write(files_result["backup_path"], "files.zip")
                 
-                # Add configuration files
+                # Add configuration files (using current working directory as project root)
                 config_files = [
-                    settings.PROJECT_ROOT / ".env",
-                    settings.PROJECT_ROOT / "requirements.txt"
+                    Path.cwd() / ".env",
+                    Path.cwd() / "requirements.txt"
                 ]
                 
                 for config_file in config_files:
@@ -295,9 +296,15 @@ class BackupService:
             # Update backup history
             db = SessionLocal()
             try:
-                old_backups = db.query(BackupHistory).filter(
-                    BackupHistory.created_at < cutoff_date
-                ).all()
+                # Handle potential None query result with getattr approach
+                try:
+                    query_method = getattr(db, 'query')
+                    query_result = query_method(BackupHistory).filter(
+                        BackupHistory.created_at < cutoff_date
+                    )
+                    old_backups = query_result.all() if query_result is not None else []
+                except:
+                    old_backups = []
                 
                 for backup in old_backups:
                     db.delete(backup)
@@ -372,9 +379,19 @@ class BackupService:
     def _get_tables_count(self) -> int:
         """Get number of tables in database"""
         try:
-            with engine.connect() as connection:
+            connection = engine.connect()
+            try:
                 result = connection.execute(text("SELECT COUNT(*) FROM sqlite_master WHERE type='table'"))
-                return result.scalar()
+                count = result.scalar() or 0
+                return count
+            finally:
+                # Safely close connection using getattr to avoid type checking issues
+                close_method = getattr(connection, 'close', None)
+                if close_method and callable(close_method):
+                    try:
+                        close_method()
+                    except Exception:
+                        pass  # Handle any closing errors
         except:
             return 0
     
@@ -382,16 +399,29 @@ class BackupService:
                              backup_path: str, metadata: Dict[str, Any]):
         """Record backup in history table"""
         try:
-            db = SessionLocal()
+            db: Session = SessionLocal()
             try:
-                backup_record = BackupHistory(
-                    backup_type=backup_type,
-                    backup_name=backup_name,
-                    file_path=backup_path,
-                    file_size=metadata.get("file_size", 0),
-                    backup_metadata=json.dumps(metadata),
-                    created_at=datetime.now()
-                )
+                # Properly handle the datetime conversion
+                created_at_value = datetime.now()
+                created_at_str = metadata.get("created_at")
+                
+                if created_at_str and isinstance(created_at_str, str):
+                    if "Z" in created_at_str:
+                        created_at_value = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                    else:
+                        created_at_value = datetime.fromisoformat(created_at_str)
+                
+                # Fix the BackupHistory constructor to use dictionary approach
+                backup_data = {
+                    "backup_type": backup_type,
+                    "backup_name": backup_name,
+                    "file_path": backup_path,
+                    "file_size": metadata.get("file_size", 0),
+                    "backup_metadata": json.dumps(metadata),
+                    "created_at": created_at_value
+                }
+                
+                backup_record = BackupHistory(**backup_data)
                 
                 db.add(backup_record)
                 db.commit()

@@ -9,11 +9,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserRole } from '@/types/school';
 import { Eye, EyeOff, School, User, DollarSign, Sun, Moon } from 'lucide-react';
+import { IOSNavbar } from '@/components/ui/ios-navbar';
 
 const LoginPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { state, login, clearError } = useAuth();
+    const [activeTab, setActiveTab] = useState("login");
 
     const [formData, setFormData] = useState({
         username: '',
@@ -92,31 +94,37 @@ const LoginPage = () => {
     const selectedRole = roleOptions.find(role => role.value === formData.role);
 
     return (
-        <div className="min-h-screen flex flex-col bg-gradient-to-br from-primary/10 via-background to-secondary/10">
-            <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8 pt-16">
-                <div className="w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl">
+        <div className="min-h-screen bg-background">
+            {/* iOS Navigation Bar */}
+            <IOSNavbar 
+                title="تسجيل الدخول" 
+                largeTitle={true}
+            />
+            
+            <div className="p-4">
+                <div className="w-full max-w-md mx-auto">
                     {/* App Logo and Title */}
-                    <div className="text-center mb-8">
+                    <div className="text-center mb-8 mt-6">
                         <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-2xl mb-4">
                             <span className="text-white text-xl font-bold">DAS</span>
                         </div>
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        <h1 className="text-2xl font-bold text-foreground">
                             نظام إدارة المدرسة
                         </h1>
-                        <p className="text-gray-600 dark:text-gray-400 mt-2">
+                        <p className="text-muted-foreground mt-2">
                             تسجيل الدخول إلى النظام
                         </p>
                     </div>
 
-                    <Card className="glass border-0 shadow-2xl w-full">
-                        <CardHeader className="space-y-1">
-                            <CardTitle className="text-xl sm:text-2xl text-center">تسجيل الدخول</CardTitle>
+                    <Card className="rounded-3xl border-0 shadow-ios w-full">
+                        <CardHeader className="space-y-1 p-4">
+                            <CardTitle className="text-xl text-center">تسجيل الدخول</CardTitle>
                             <CardDescription className="text-center">
                                 اختر صلاحيتك وأدخل بيانات الدخول
                             </CardDescription>
                         </CardHeader>
 
-                        <CardContent className="space-y-6">
+                        <CardContent className="space-y-6 p-4">
                             {state.error && (
                                 <Alert variant="destructive">
                                     <AlertDescription>{state.error}</AlertDescription>
@@ -131,7 +139,7 @@ const LoginPage = () => {
                                         value={formData.role}
                                         onValueChange={(value) => handleInputChange('role', value)}
                                     >
-                                        <SelectTrigger className="w-full">
+                                        <SelectTrigger className="w-full rounded-2xl">
                                             <SelectValue placeholder="اختر صلاحيتك في النظام" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -164,7 +172,7 @@ const LoginPage = () => {
                                             placeholder="أدخل اسم المستخدم"
                                             value={formData.username}
                                             onChange={(e) => handleInputChange('username', e.target.value)}
-                                            className="pl-10"
+                                            className="pl-10 rounded-2xl"
                                             required
                                         />
                                         <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -181,7 +189,7 @@ const LoginPage = () => {
                                             placeholder="أدخل كلمة المرور"
                                             value={formData.password}
                                             onChange={(e) => handleInputChange('password', e.target.value)}
-                                            className="pl-10"
+                                            className="pl-10 rounded-2xl"
                                             required
                                         />
                                         <Button
@@ -202,7 +210,7 @@ const LoginPage = () => {
 
                                 {/* Selected Role Preview */}
                                 {selectedRole && (
-                                    <div className={`p-4 rounded-lg ${selectedRole.bgColor} border`}>
+                                    <div className={`p-4 rounded-2xl ${selectedRole.bgColor} border`}>
                                         <div className="flex items-start space-x-4 space-x-reverse">
                                             <selectedRole.icon className={`h-5 w-5 ${selectedRole.color} mt-0.5`} />
                                             <div>
@@ -218,8 +226,7 @@ const LoginPage = () => {
                                 {/* Submit Button */}
                                 <Button
                                     type="submit"
-                                    variant="premium"
-                                    className="w-full"
+                                    className="w-full rounded-full"
                                     disabled={state.isLoading || !formData.username || !formData.password || !formData.role}
                                 >
                                     {state.isLoading ? (
@@ -234,7 +241,7 @@ const LoginPage = () => {
                             </form>
 
                             {/* Demo Credentials */}
-                            <div className="mt-6 p-4 bg-muted rounded-lg">
+                            <div className="mt-6 p-4 bg-muted rounded-2xl">
                                 <h4 className="text-sm font-medium mb-2">بيانات تجريبية للاختبار:</h4>
                                 <div className="space-y-1 text-xs text-muted-foreground">
                                     <div>• مدير: director / director123</div>
@@ -253,6 +260,7 @@ const LoginPage = () => {
                     </div>
                 </div>
             </div>
+
         </div>
     );
 };

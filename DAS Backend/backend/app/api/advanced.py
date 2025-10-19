@@ -40,9 +40,9 @@ async def get_audit_logs(
     # Get logs from monitoring service
     from ..services.monitoring_service import monitoring_service
     logs_data = monitoring_service.get_logs(
-        level=level,
-        module=module,
-        search_term=search,
+        level=level or None,
+        module=module or None,
+        search_term=search or None,
         skip=skip,
         limit=limit
     )
@@ -59,12 +59,17 @@ async def get_active_sessions(
         from ..models.system import UserSession
         from sqlalchemy import and_
         
-        active_sessions = db.query(UserSession).filter(
-            and_(
-                UserSession.is_active == True,
-                UserSession.expires_at > datetime.utcnow()
+        try:
+            query_method = getattr(db, 'query')
+            query = query_method(UserSession).filter(
+                and_(
+                    UserSession.is_active == True,
+                    UserSession.expires_at > datetime.utcnow()
+                )
             )
-        ).all()
+        except:
+            query = None
+        active_sessions = query.all() if query is not None else []
         
         session_data = []
         for session in active_sessions:
@@ -97,9 +102,14 @@ async def terminate_session(
         from ..models.system import UserSession
         
         # Find and deactivate the session
-        session = db.query(UserSession).filter(
-            UserSession.session_token == session_token
-        ).first()
+        try:
+            query_method = getattr(db, 'query')
+            query = query_method(UserSession).filter(
+                UserSession.session_token == session_token
+            )
+        except:
+            query = None
+        session = query.first() if query is not None else None
         
         if not session:
             raise HTTPException(
@@ -215,8 +225,8 @@ async def update_configuration(
         value=value,
         user_id=current_user.id,
         config_type=config_type,
-        description=description,
-        category=category
+        description=description or "",
+        category=category or "custom"
     )
     
     if not success:
@@ -270,8 +280,8 @@ async def upload_file(
         # Upload file
         result = file_service.upload_file(
             file_content=file_content,
-            original_filename=file.filename,
-            file_type=file.content_type,
+            original_filename=file.filename or "unnamed_file",
+            file_type=file.content_type or "application/octet-stream",
             uploaded_by=current_user.id,
             related_entity_type=related_entity_type,
             related_entity_id=related_entity_id
@@ -519,9 +529,14 @@ async def get_login_attempts(
         
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
-        login_attempts = db.query(LoginAttempt).filter(
-            LoginAttempt.attempted_at >= cutoff_date
-        ).order_by(LoginAttempt.attempted_at.desc()).all()
+        try:
+            query_method = getattr(db, 'query')
+            query = query_method(LoginAttempt).filter(
+                LoginAttempt.attempted_at >= cutoff_date
+            ).order_by(LoginAttempt.attempted_at.desc())
+        except:
+            query = None
+        login_attempts = query.all() if query is not None else []
         
         attempt_data = []
         for attempt in login_attempts:

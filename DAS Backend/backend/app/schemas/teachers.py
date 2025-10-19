@@ -17,6 +17,7 @@ class TeacherBase(BaseModel):
     experience_years: int
     salary: Decimal
     session_type: str  # "morning", "evening", "both"
+    academic_year_id: int  # Add this missing field
     is_active: bool = True
 
     @validator('session_type')
@@ -40,6 +41,7 @@ class TeacherUpdate(BaseModel):
     experience_years: Optional[int] = None
     salary: Optional[Decimal] = None
     session_type: Optional[str] = None
+    academic_year_id: Optional[int] = None
     is_active: Optional[bool] = None
 
     @validator('session_type')

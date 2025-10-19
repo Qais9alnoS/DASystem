@@ -5,7 +5,7 @@ Rate Limiting Middleware and Security Enhancements
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from fastapi import Request, Response, HTTPException, status
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -35,7 +35,7 @@ class AdvancedRateLimiter:
                 del self.blocked_ips[ip_address]
         return False
     
-    def record_failed_attempt(self, ip_address: str, username: str = None):
+    def record_failed_attempt(self, ip_address: str, username: Optional[str] = None):
         """Record failed authentication attempt"""
         current_time = time.time()
         
@@ -128,7 +128,7 @@ async def rate_limit_middleware(request: Request, call_next):
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={
                 "detail": "Rate limit exceeded",
-                "retry_after": str(e.retry_after)
+                "retry_after": "60"  # Default retry after 60 seconds
             }
         )
     except Exception as e:
@@ -178,7 +178,7 @@ def create_custom_rate_limit_handler():
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             content={
                 "detail": "Rate limit exceeded. Please try again later.",
-                "retry_after": exc.retry_after
+                "retry_after": "60"  # Default retry after 60 seconds
             }
         )
     

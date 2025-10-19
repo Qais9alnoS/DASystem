@@ -13,7 +13,7 @@ from ..models.teachers import Teacher
 from ..models.users import User
 from ..core.dependencies import get_current_user, get_school_user, get_director_user
 
-router = APIRouter(prefix="/schedules", tags=["schedules"])
+router = APIRouter(tags=["schedules"])
 
 # Simplified schemas for existing models
 class ScheduleResponse(BaseModel):

@@ -354,7 +354,7 @@ export const teachersApi = {
     skip?: number;
     limit?: number;
   }) => {
-    const queryString = params ? '?' + new URLSearchParams(
+    const queryString = params && Object.keys(params).length > 0 ? '?' + new URLSearchParams(
       Object.entries(params)
         .filter(([_, v]) => v !== undefined && v !== null)
         .map(([k, v]) => [k, String(v)])
@@ -379,12 +379,15 @@ export const teachersApi = {
   },
 
   search: async (query: string, skip: number = 0, limit: number = 50) => {
-    const params = '?' + new URLSearchParams({ q: query, skip: skip.toString(), limit: limit.toString() }).toString();
+    const params = query ? '?' + new URLSearchParams({ q: query, skip: skip.toString(), limit: limit.toString() }).toString() : '';
     return apiClient.get<Teacher[]>(`/teachers/search/${params}`);
   },
 
   getAttendance: async (teacher_id: number, month: number, year: number) => {
-    const params = '?' + new URLSearchParams({ month: month.toString(), year: year.toString() }).toString();
+    const paramsObj: any = {};
+    if (month) paramsObj.month = month.toString();
+    if (year) paramsObj.year = year.toString();
+    const params = Object.keys(paramsObj).length > 0 ? '?' + new URLSearchParams(paramsObj).toString() : '';
     return apiClient.get<TeacherAttendance[]>(`/teachers/${teacher_id}/attendance${params}`);
   },
 
@@ -397,7 +400,7 @@ export const teachersApi = {
     month?: number;
     year?: number;
   }) => {
-    const queryString = params ? '?' + new URLSearchParams(
+    const queryString = params && Object.keys(params).length > 0 ? '?' + new URLSearchParams(
       Object.entries(params)
         .filter(([_, v]) => v !== undefined && v !== null)
         .map(([k, v]) => [k, String(v)])

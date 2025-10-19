@@ -88,15 +88,17 @@ class SystemMonitoringService:
         try:
             db = SessionLocal()
             try:
-                log_entry = SystemLog(
-                    level=level.upper(),
-                    message=message,
-                    module=module,
-                    user_id=user_id,
-                    ip_address=ip_address,
-                    additional_data=json.dumps(additional_data) if additional_data else None,
-                    timestamp=datetime.now()
-                )
+                # Create log entry using dictionary to avoid type errors
+                log_data = {
+                    "level": level.upper() if level else "",
+                    "message": message,
+                    "module": module,
+                    "user_id": user_id,
+                    "ip_address": ip_address,
+                    "additional_data": json.dumps(additional_data) if additional_data else None,
+                    "timestamp": datetime.now()
+                }
+                log_entry = SystemLog(**log_data)
                 
                 db.add(log_entry)
                 db.commit()
@@ -121,13 +123,15 @@ class SystemMonitoringService:
         try:
             db = SessionLocal()
             try:
-                metric = PerformanceMetric(
-                    metric_name=metric_name,
-                    value=value,
-                    unit=unit,
-                    tags=json.dumps(tags) if tags else None,
-                    timestamp=datetime.now()
-                )
+                # Create metric using dictionary to avoid type errors
+                metric_data = {
+                    "metric_name": metric_name,
+                    "value": value,
+                    "unit": unit,
+                    "tags": json.dumps(tags) if tags else None,
+                    "timestamp": datetime.now()
+                }
+                metric = PerformanceMetric(**metric_data)
                 
                 db.add(metric)
                 db.commit()
@@ -158,25 +162,25 @@ class SystemMonitoringService:
                 
                 # Apply filters
                 if level:
-                    query = query.filter(SystemLog.level == level.upper())
+                    query = query.filter(SystemLog.level == level.upper())  
                 
                 if module:
-                    query = query.filter(SystemLog.module == module)
+                    query = query.filter(SystemLog.module == module)  
                 
                 if start_date:
-                    query = query.filter(SystemLog.timestamp >= start_date)
+                    query = query.filter(SystemLog.timestamp >= start_date)  
                 
                 if end_date:
-                    query = query.filter(SystemLog.timestamp <= end_date)
+                    query = query.filter(SystemLog.timestamp <= end_date)  
                 
                 if search_term:
-                    query = query.filter(SystemLog.message.contains(search_term))
+                    query = query.filter(SystemLog.message.contains(search_term))  
                 
                 # Get total count
                 total_count = query.count()
                 
                 # Apply pagination and ordering
-                logs = query.order_by(SystemLog.timestamp.desc()).offset(skip).limit(limit).all()
+                logs = query.order_by(SystemLog.timestamp.desc()).offset(skip).limit(limit).all()  
                 
                 # Convert to dict format
                 log_data = []
@@ -222,15 +226,15 @@ class SystemMonitoringService:
                 query = db.query(PerformanceMetric)
                 
                 if metric_name:
-                    query = query.filter(PerformanceMetric.metric_name == metric_name)
+                    query = query.filter(PerformanceMetric.metric_name == metric_name)  
                 
                 if start_date:
-                    query = query.filter(PerformanceMetric.timestamp >= start_date)
+                    query = query.filter(PerformanceMetric.timestamp >= start_date)  
                 
                 if end_date:
-                    query = query.filter(PerformanceMetric.timestamp <= end_date)
+                    query = query.filter(PerformanceMetric.timestamp <= end_date)  
                 
-                metrics = query.order_by(PerformanceMetric.timestamp.desc()).limit(1000).all()
+                metrics = query.order_by(PerformanceMetric.timestamp.desc()).limit(1000).all()  
                 
                 metric_data = []
                 for metric in metrics:
@@ -260,12 +264,12 @@ class SystemMonitoringService:
             db = SessionLocal()
             try:
                 # Delete old logs
-                deleted_logs = db.query(SystemLog).filter(
+                deleted_logs = db.query(SystemLog).filter(  
                     SystemLog.timestamp < cutoff_date
                 ).delete()
                 
                 # Delete old performance metrics
-                deleted_metrics = db.query(PerformanceMetric).filter(
+                deleted_metrics = db.query(PerformanceMetric).filter(  
                     PerformanceMetric.timestamp < cutoff_date
                 ).delete()
                 
@@ -306,7 +310,7 @@ class SystemMonitoringService:
                 
                 # Count users who logged in within the last 24 hours
                 yesterday = datetime.now() - timedelta(hours=24)
-                active_count = db.query(User).filter(
+                active_count = db.query(User).filter(  
                     and_(
                         User.last_login.isnot(None),
                         User.last_login >= yesterday
@@ -327,7 +331,7 @@ class SystemMonitoringService:
             try:
                 from ..models.system import BackupHistory
                 
-                last_backup = db.query(BackupHistory).order_by(
+                last_backup = db.query(BackupHistory).order_by(  
                     BackupHistory.created_at.desc()
                 ).first()
                 

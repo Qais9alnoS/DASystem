@@ -16,7 +16,7 @@ from ..schemas.search import (
     SortOrder
 )
 
-router = APIRouter(prefix="/search", tags=["search"])
+router = APIRouter(tags=["search"])
 
 @router.get("/universal")
 async def universal_search(

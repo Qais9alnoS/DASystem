@@ -21,7 +21,7 @@ from ..schemas.activities import (
 )
 from ..core.dependencies import get_current_user, get_director_user, get_school_user
 
-router = APIRouter(prefix="/activities", tags=["activities"])
+router = APIRouter(tags=["activities"])
 
 # Activity Management
 @router.get("/", response_model=List[ActivityResponse])
@@ -36,36 +36,61 @@ async def get_activities(
     current_user: User = Depends(get_school_user)
 ):
     """Get all activities with optional filtering"""
-    query = db.query(Activity)
+    query = db.query(Activity)  
     
-    if academic_year_id:
-        query = query.filter(Activity.academic_year_id == academic_year_id)
+    if academic_year_id is not None:
+        query = query.filter(Activity.academic_year_id == academic_year_id)  
     
     if activity_type:
-        query = query.filter(Activity.activity_type == activity_type)
+        query = query.filter(Activity.activity_type == activity_type)  
     
     if session_type:
-        query = query.filter(
+        query = query.filter(  
             (Activity.session_type == session_type) | 
             (Activity.session_type == "both")
         )
     
     if is_active is not None:
-        query = query.filter(Activity.is_active == is_active)
+        query = query.filter(Activity.is_active == is_active)  
     
-    activities = query.offset(skip).limit(limit).all()
+    activities = query.offset(skip).limit(limit).all()  
     
-    # Add current participants count
+    # Create response objects with current participants count
+    response_activities = []
     for activity in activities:
-        participant_count = db.query(ActivityRegistration).filter(
+        participant_count = db.query(ActivityRegistration).filter(  
             and_(
                 ActivityRegistration.activity_id == activity.id,
                 ActivityRegistration.payment_status != "cancelled"
             )
         ).count()
-        activity.current_participants = participant_count
+        
+        # Create a response object with the current_participants attribute
+        activity_dict = {
+            "id": activity.id,
+            "academic_year_id": activity.academic_year_id,
+            "name": activity.name,
+            "description": activity.description,
+            "activity_type": activity.activity_type,
+            "session_type": activity.session_type,
+            "target_grades": activity.target_grades,
+            "max_participants": activity.max_participants,
+            "cost_per_student": activity.cost_per_student,
+            "start_date": activity.start_date,
+            "end_date": activity.end_date,
+            "registration_deadline": activity.registration_deadline,
+            "location": activity.location,
+            "instructor_name": activity.instructor_name,
+            "requirements": activity.requirements,
+            "is_active": activity.is_active,
+            "current_participants": participant_count,
+            "images": activity.images,
+            "created_at": activity.created_at,
+            "updated_at": activity.updated_at
+        }
+        response_activities.append(ActivityResponse(**activity_dict))
     
-    return activities
+    return response_activities
 
 @router.post("/", response_model=ActivityResponse)
 async def create_activity(
@@ -75,7 +100,7 @@ async def create_activity(
 ):
     """Create a new activity"""
     # Check if activity with same name already exists in the academic year
-    existing_activity = db.query(Activity).filter(
+    existing_activity = db.query(Activity).filter(  
         and_(
             Activity.name == activity.name,
             Activity.academic_year_id == activity.academic_year_id
@@ -90,10 +115,30 @@ async def create_activity(
     db.commit()
     db.refresh(db_activity)
     
-    # Set current participants to 0
-    db_activity.current_participants = 0
-    
-    return db_activity
+    # Create response object with current participants set to 0
+    activity_dict = {
+        "id": db_activity.id,
+        "academic_year_id": db_activity.academic_year_id,
+        "name": db_activity.name,
+        "description": db_activity.description,
+        "activity_type": db_activity.activity_type,
+        "session_type": db_activity.session_type,
+        "target_grades": db_activity.target_grades,
+        "max_participants": db_activity.max_participants,
+        "cost_per_student": db_activity.cost_per_student,
+        "start_date": db_activity.start_date,
+        "end_date": db_activity.end_date,
+        "registration_deadline": db_activity.registration_deadline,
+        "location": db_activity.location,
+        "instructor_name": db_activity.instructor_name,
+        "requirements": db_activity.requirements,
+        "is_active": db_activity.is_active,
+        "current_participants": 0,
+        "images": db_activity.images,
+        "created_at": db_activity.created_at,
+        "updated_at": db_activity.updated_at
+    }
+    return ActivityResponse(**activity_dict)
 
 @router.get("/{activity_id}", response_model=ActivityResponse)
 async def get_activity(
@@ -102,20 +147,42 @@ async def get_activity(
     current_user: User = Depends(get_school_user)
 ):
     """Get a specific activity by ID"""
-    activity = db.query(Activity).filter(Activity.id == activity_id).first()
+    activity = db.query(Activity).filter(Activity.id == activity_id).first()  
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
     
     # Add current participants count
-    participant_count = db.query(ActivityRegistration).filter(
+    participant_count = db.query(ActivityRegistration).filter(  
         and_(
             ActivityRegistration.activity_id == activity_id,
             ActivityRegistration.payment_status != "cancelled"
         )
     ).count()
-    activity.current_participants = participant_count
     
-    return activity
+    # Create response object with current participants count
+    activity_dict = {
+        "id": activity.id,
+        "academic_year_id": activity.academic_year_id,
+        "name": activity.name,
+        "description": activity.description,
+        "activity_type": activity.activity_type,
+        "session_type": activity.session_type,
+        "target_grades": activity.target_grades,
+        "max_participants": activity.max_participants,
+        "cost_per_student": activity.cost_per_student,
+        "start_date": activity.start_date,
+        "end_date": activity.end_date,
+        "registration_deadline": activity.registration_deadline,
+        "location": activity.location,
+        "instructor_name": activity.instructor_name,
+        "requirements": activity.requirements,
+        "is_active": activity.is_active,
+        "current_participants": participant_count,
+        "images": activity.images,
+        "created_at": activity.created_at,
+        "updated_at": activity.updated_at
+    }
+    return ActivityResponse(**activity_dict)
 
 @router.put("/{activity_id}", response_model=ActivityResponse)
 async def update_activity(
@@ -125,7 +192,7 @@ async def update_activity(
     current_user: User = Depends(get_director_user)
 ):
     """Update an activity"""
-    activity = db.query(Activity).filter(Activity.id == activity_id).first()
+    activity = db.query(Activity).filter(Activity.id == activity_id).first()  
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
     
@@ -133,7 +200,7 @@ async def update_activity(
     
     # Check for unique name constraint if name is being updated
     if "name" in update_data:
-        existing_activity = db.query(Activity).filter(
+        existing_activity = db.query(Activity).filter(  
             and_(
                 Activity.name == update_data["name"],
                 Activity.academic_year_id == activity.academic_year_id,
@@ -148,7 +215,39 @@ async def update_activity(
     
     db.commit()
     db.refresh(activity)
-    return activity
+    
+    # Add current participants count to response
+    participant_count = db.query(ActivityRegistration).filter(  
+        and_(
+            ActivityRegistration.activity_id == activity_id,
+            ActivityRegistration.payment_status != "cancelled"
+        )
+    ).count()
+    
+    # Create response object with current participants count
+    activity_dict = {
+        "id": activity.id,
+        "academic_year_id": activity.academic_year_id,
+        "name": activity.name,
+        "description": activity.description,
+        "activity_type": activity.activity_type,
+        "session_type": activity.session_type,
+        "target_grades": activity.target_grades,
+        "max_participants": activity.max_participants,
+        "cost_per_student": activity.cost_per_student,
+        "start_date": activity.start_date,
+        "end_date": activity.end_date,
+        "registration_deadline": activity.registration_deadline,
+        "location": activity.location,
+        "instructor_name": activity.instructor_name,
+        "requirements": activity.requirements,
+        "is_active": activity.is_active,
+        "current_participants": participant_count,
+        "images": activity.images,
+        "created_at": activity.created_at,
+        "updated_at": activity.updated_at
+    }
+    return ActivityResponse(**activity_dict)
 
 @router.delete("/{activity_id}")
 async def delete_activity(
@@ -157,7 +256,7 @@ async def delete_activity(
     current_user: User = Depends(get_director_user)
 ):
     """Delete an activity (soft delete by setting is_active to False)"""
-    activity = db.query(Activity).filter(Activity.id == activity_id).first()
+    activity = db.query(Activity).filter(Activity.id == activity_id).first()  
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
     
@@ -174,23 +273,38 @@ async def get_activity_registrations(
     current_user: User = Depends(get_school_user)
 ):
     """Get all registrations for an activity"""
-    query = db.query(ActivityRegistration).join(Student).filter(
+    query = db.query(ActivityRegistration).join(Student).filter(  
         ActivityRegistration.activity_id == activity_id
     )
     
     if payment_status:
-        query = query.filter(ActivityRegistration.payment_status == payment_status)
+        query = query.filter(ActivityRegistration.payment_status == payment_status)  
     
     registrations = query.all()
     
-    # Add student and activity names
+    # Create response objects with student and activity names
+    response_registrations = []
     for registration in registrations:
-        student = db.query(Student).filter(Student.id == registration.student_id).first()
-        activity = db.query(Activity).filter(Activity.id == registration.activity_id).first()
-        registration.student_name = f"{student.first_name} {student.last_name}" if student else "Unknown"
-        registration.activity_name = activity.name if activity else "Unknown"
+        student = db.query(Student).filter(Student.id == registration.student_id).first()  
+        activity = db.query(Activity).filter(Activity.id == registration.activity_id).first()  
+        
+        # Create a response object with the names
+        registration_dict = {
+            "id": registration.id,
+            "student_id": registration.student_id,
+            "activity_id": registration.activity_id,
+            "registration_date": registration.registration_date,
+            "payment_status": registration.payment_status,
+            "payment_amount": registration.payment_amount,
+            "notes": registration.notes,
+            "student_name": f"{student.full_name}" if student else "Unknown",
+            "activity_name": activity.name if activity else "Unknown",
+            "created_at": registration.created_at,
+            "updated_at": registration.updated_at
+        }
+        response_registrations.append(ActivityRegistrationResponse(**registration_dict))
     
-    return registrations
+    return response_registrations
 
 @router.post("/{activity_id}/registrations", response_model=ActivityRegistrationResponse)
 async def register_student_for_activity(
@@ -201,12 +315,12 @@ async def register_student_for_activity(
 ):
     """Register a student for an activity"""
     # Check if activity exists
-    activity = db.query(Activity).filter(Activity.id == activity_id).first()
+    activity = db.query(Activity).filter(Activity.id == activity_id).first()  
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
     
     # Check if student exists
-    student = db.query(Student).filter(Student.id == registration.student_id).first()
+    student = db.query(Student).filter(Student.id == registration.student_id).first()  
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
     
@@ -216,7 +330,7 @@ async def register_student_for_activity(
     
     # Check if activity has reached max participants
     if activity.max_participants:
-        current_participants = db.query(ActivityRegistration).filter(
+        current_participants = db.query(ActivityRegistration).filter(  
             and_(
                 ActivityRegistration.activity_id == activity_id,
                 ActivityRegistration.payment_status != "cancelled"
@@ -227,7 +341,7 @@ async def register_student_for_activity(
             raise HTTPException(status_code=400, detail="Activity has reached maximum participants")
     
     # Check if student is already registered
-    existing_registration = db.query(ActivityRegistration).filter(
+    existing_registration = db.query(ActivityRegistration).filter(  
         and_(
             ActivityRegistration.student_id == registration.student_id,
             ActivityRegistration.activity_id == activity_id,
@@ -243,19 +357,30 @@ async def register_student_for_activity(
         if student.grade_level not in activity.target_grades:
             raise HTTPException(status_code=400, detail="Student's grade is not eligible for this activity")
     
-    registration.activity_id = activity_id
-    registration.payment_amount = activity.cost_per_student
+    registration_data = registration.dict()
+    registration_data['activity_id'] = activity_id
+    registration_data['payment_amount'] = activity.cost_per_student
     
-    db_registration = ActivityRegistration(**registration.dict())
+    db_registration = ActivityRegistration(**registration_data)
     db.add(db_registration)
     db.commit()
     db.refresh(db_registration)
     
-    # Add student and activity names
-    db_registration.student_name = f"{student.first_name} {student.last_name}"
-    db_registration.activity_name = activity.name
-    
-    return db_registration
+    # Create response object with names
+    registration_dict = {
+        "id": db_registration.id,
+        "student_id": db_registration.student_id,
+        "activity_id": db_registration.activity_id,
+        "registration_date": db_registration.registration_date,
+        "payment_status": db_registration.payment_status,
+        "payment_amount": db_registration.payment_amount,
+        "notes": db_registration.notes,
+        "student_name": f"{student.full_name}" if student else "Unknown",
+        "activity_name": activity.name if activity else "Unknown",
+        "created_at": db_registration.created_at,
+        "updated_at": db_registration.updated_at
+    }
+    return ActivityRegistrationResponse(**registration_dict)
 
 @router.put("/registrations/{registration_id}", response_model=ActivityRegistrationResponse)
 async def update_activity_registration(
@@ -265,7 +390,7 @@ async def update_activity_registration(
     current_user: User = Depends(get_school_user)
 ):
     """Update an activity registration"""
-    registration = db.query(ActivityRegistration).filter(ActivityRegistration.id == registration_id).first()
+    registration = db.query(ActivityRegistration).filter(ActivityRegistration.id == registration_id).first()  
     if not registration:
         raise HTTPException(status_code=404, detail="Registration not found")
     
@@ -275,7 +400,26 @@ async def update_activity_registration(
     
     db.commit()
     db.refresh(registration)
-    return registration
+    
+    # Add student and activity names to response
+    student = db.query(Student).filter(Student.id == registration.student_id).first()  
+    activity = db.query(Activity).filter(Activity.id == registration.activity_id).first()  
+    
+    # Create response object with names
+    registration_dict = {
+        "id": registration.id,
+        "student_id": registration.student_id,
+        "activity_id": registration.activity_id,
+        "registration_date": registration.registration_date,
+        "payment_status": registration.payment_status,
+        "payment_amount": registration.payment_amount,
+        "notes": registration.notes,
+        "student_name": f"{student.full_name}" if student else "Unknown",
+        "activity_name": activity.name if activity else "Unknown",
+        "created_at": registration.created_at,
+        "updated_at": registration.updated_at
+    }
+    return ActivityRegistrationResponse(**registration_dict)
 
 # Activity Schedule Management
 @router.get("/{activity_id}/schedule", response_model=List[ActivityScheduleResponse])
@@ -285,17 +429,31 @@ async def get_activity_schedule(
     current_user: User = Depends(get_school_user)
 ):
     """Get schedule for an activity"""
-    schedules = db.query(ActivitySchedule).filter(ActivitySchedule.activity_id == activity_id).all()
+    schedules = db.query(ActivitySchedule).filter(ActivitySchedule.activity_id == activity_id).all()  
     
-    # Add activity name and day name
+    # Create response objects with activity name and day name
+    response_schedules = []
     for schedule in schedules:
-        activity = db.query(Activity).filter(Activity.id == activity_id).first()
-        schedule.activity_name = activity.name if activity else "Unknown"
+        activity = db.query(Activity).filter(Activity.id == activity_id).first()  
         
-        day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        schedule.day_name = day_names[schedule.day_of_week]
+        # Create a response object with the names
+        schedule_dict = {
+            "id": schedule.id,
+            "activity_id": schedule.activity_id,
+            "day_of_week": schedule.day_of_week,
+            "start_time": schedule.start_time,
+            "end_time": schedule.end_time,
+            "location": schedule.location,
+            "instructor_name": schedule.instructor_name,
+            "notes": schedule.notes,
+            "activity_name": activity.name if activity else "Unknown",
+            "day_name": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][schedule.day_of_week] if 0 <= schedule.day_of_week <= 6 else "Unknown",
+            "created_at": schedule.created_at,
+            "updated_at": schedule.updated_at
+        }
+        response_schedules.append(ActivityScheduleResponse(**schedule_dict))
     
-    return schedules
+    return response_schedules
 
 @router.post("/{activity_id}/schedule", response_model=ActivityScheduleResponse)
 async def create_activity_schedule(
@@ -306,12 +464,12 @@ async def create_activity_schedule(
 ):
     """Create a schedule for an activity"""
     # Check if activity exists
-    activity = db.query(Activity).filter(Activity.id == activity_id).first()
+    activity = db.query(Activity).filter(Activity.id == activity_id).first()  
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
     
     # Check if schedule already exists for this day
-    existing_schedule = db.query(ActivitySchedule).filter(
+    existing_schedule = db.query(ActivitySchedule).filter(  
         and_(
             ActivitySchedule.activity_id == activity_id,
             ActivitySchedule.day_of_week == schedule.day_of_week
@@ -321,18 +479,29 @@ async def create_activity_schedule(
     if existing_schedule:
         raise HTTPException(status_code=400, detail="Schedule already exists for this day")
     
-    schedule.activity_id = activity_id
-    db_schedule = ActivitySchedule(**schedule.dict())
+    schedule_data = schedule.dict()
+    schedule_data['activity_id'] = activity_id
+    db_schedule = ActivitySchedule(**schedule_data)
     db.add(db_schedule)
     db.commit()
     db.refresh(db_schedule)
     
-    # Add activity name and day name
-    db_schedule.activity_name = activity.name
-    day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    db_schedule.day_name = day_names[schedule.day_of_week]
-    
-    return db_schedule
+    # Create response object with names
+    schedule_dict = {
+        "id": db_schedule.id,
+        "activity_id": db_schedule.activity_id,
+        "day_of_week": db_schedule.day_of_week,
+        "start_time": db_schedule.start_time,
+        "end_time": db_schedule.end_time,
+        "location": db_schedule.location,
+        "instructor_name": db_schedule.instructor_name,
+        "notes": db_schedule.notes,
+        "activity_name": activity.name if activity else "Unknown",
+        "day_name": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][schedule.day_of_week] if 0 <= schedule.day_of_week <= 6 else "Unknown",
+        "created_at": db_schedule.created_at,
+        "updated_at": db_schedule.updated_at
+    }
+    return ActivityScheduleResponse(**schedule_dict)
 
 @router.put("/schedule/{schedule_id}", response_model=ActivityScheduleResponse)
 async def update_activity_schedule(
@@ -342,7 +511,7 @@ async def update_activity_schedule(
     current_user: User = Depends(get_director_user)
 ):
     """Update an activity schedule"""
-    schedule = db.query(ActivitySchedule).filter(ActivitySchedule.id == schedule_id).first()
+    schedule = db.query(ActivitySchedule).filter(ActivitySchedule.id == schedule_id).first()  
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found")
     
@@ -352,7 +521,26 @@ async def update_activity_schedule(
     
     db.commit()
     db.refresh(schedule)
-    return schedule
+    
+    # Add activity name and day name to response
+    activity = db.query(Activity).filter(Activity.id == schedule.activity_id).first()  
+    
+    # Create response object with names
+    schedule_dict = {
+        "id": schedule.id,
+        "activity_id": schedule.activity_id,
+        "day_of_week": schedule.day_of_week,
+        "start_time": schedule.start_time,
+        "end_time": schedule.end_time,
+        "location": schedule.location,
+        "instructor_name": schedule.instructor_name,
+        "notes": schedule.notes,
+        "activity_name": activity.name if activity else "Unknown",
+        "day_name": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][schedule.day_of_week] if 0 <= schedule.day_of_week <= 6 else "Unknown",
+        "created_at": schedule.created_at,
+        "updated_at": schedule.updated_at
+    }
+    return ActivityScheduleResponse(**schedule_dict)
 
 @router.delete("/schedule/{schedule_id}")
 async def delete_activity_schedule(
@@ -361,7 +549,7 @@ async def delete_activity_schedule(
     current_user: User = Depends(get_director_user)
 ):
     """Delete an activity schedule"""
-    schedule = db.query(ActivitySchedule).filter(ActivitySchedule.id == schedule_id).first()
+    schedule = db.query(ActivitySchedule).filter(ActivitySchedule.id == schedule_id).first()  
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found")
     
@@ -379,26 +567,53 @@ async def get_activity_attendance(
     current_user: User = Depends(get_school_user)
 ):
     """Get attendance records for a registration"""
-    query = db.query(ActivityAttendance).filter(ActivityAttendance.registration_id == registration_id)
+    query = db.query(ActivityAttendance).filter(ActivityAttendance.registration_id == registration_id)  
     
     if start_date:
-        query = query.filter(ActivityAttendance.attendance_date >= start_date)
+        query = query.filter(ActivityAttendance.attendance_date >= start_date)  
     
     if end_date:
-        query = query.filter(ActivityAttendance.attendance_date <= end_date)
+        query = query.filter(ActivityAttendance.attendance_date <= end_date)  
     
     attendance_records = query.order_by(ActivityAttendance.attendance_date.desc()).all()
     
-    # Add student and activity names
+    # Create response objects with student and activity names
+    response_attendance = []
     for attendance in attendance_records:
-        registration = db.query(ActivityRegistration).filter(ActivityRegistration.id == registration_id).first()
+        registration = db.query(ActivityRegistration).filter(ActivityRegistration.id == registration_id).first()  
         if registration:
-            student = db.query(Student).filter(Student.id == registration.student_id).first()
-            activity = db.query(Activity).filter(Activity.id == registration.activity_id).first()
-            attendance.student_name = f"{student.first_name} {student.last_name}" if student else "Unknown"
-            attendance.activity_name = activity.name if activity else "Unknown"
+            student = db.query(Student).filter(Student.id == registration.student_id).first()  
+            activity = db.query(Activity).filter(Activity.id == registration.activity_id).first()  
+            
+            # Create a response object with the names
+            attendance_dict = {
+                "id": attendance.id,
+                "registration_id": attendance.registration_id,
+                "attendance_date": attendance.attendance_date,
+                "status": attendance.status,
+                "notes": attendance.notes,
+                "student_name": f"{student.full_name}" if student else "Unknown",
+                "activity_name": activity.name if activity else "Unknown",
+                "created_at": attendance.created_at,
+                "updated_at": attendance.updated_at
+            }
+            response_attendance.append(ActivityAttendanceResponse(**attendance_dict))
+        else:
+            # If registration not found, still create response object
+            attendance_dict = {
+                "id": attendance.id,
+                "registration_id": attendance.registration_id,
+                "attendance_date": attendance.attendance_date,
+                "status": attendance.status,
+                "notes": attendance.notes,
+                "student_name": "Unknown",
+                "activity_name": "Unknown",
+                "created_at": attendance.created_at,
+                "updated_at": attendance.updated_at
+            }
+            response_attendance.append(ActivityAttendanceResponse(**attendance_dict))
     
-    return attendance_records
+    return response_attendance
 
 @router.post("/registrations/{registration_id}/attendance", response_model=ActivityAttendanceResponse)
 async def record_activity_attendance(
@@ -409,12 +624,12 @@ async def record_activity_attendance(
 ):
     """Record attendance for an activity registration"""
     # Check if registration exists
-    registration = db.query(ActivityRegistration).filter(ActivityRegistration.id == registration_id).first()
+    registration = db.query(ActivityRegistration).filter(ActivityRegistration.id == registration_id).first()  
     if not registration:
         raise HTTPException(status_code=404, detail="Registration not found")
     
     # Check if attendance already recorded for this date
-    existing_attendance = db.query(ActivityAttendance).filter(
+    existing_attendance = db.query(ActivityAttendance).filter(  
         and_(
             ActivityAttendance.registration_id == registration_id,
             ActivityAttendance.attendance_date == attendance.attendance_date
@@ -424,19 +639,30 @@ async def record_activity_attendance(
     if existing_attendance:
         raise HTTPException(status_code=400, detail="Attendance already recorded for this date")
     
-    attendance.registration_id = registration_id
-    db_attendance = ActivityAttendance(**attendance.dict())
+    attendance_data = attendance.dict()
+    attendance_data['registration_id'] = registration_id
+    db_attendance = ActivityAttendance(**attendance_data)
     db.add(db_attendance)
     db.commit()
     db.refresh(db_attendance)
     
     # Add student and activity names
-    student = db.query(Student).filter(Student.id == registration.student_id).first()
-    activity = db.query(Activity).filter(Activity.id == registration.activity_id).first()
-    db_attendance.student_name = f"{student.first_name} {student.last_name}" if student else "Unknown"
-    db_attendance.activity_name = activity.name if activity else "Unknown"
+    student = db.query(Student).filter(Student.id == registration.student_id).first()  
+    activity = db.query(Activity).filter(Activity.id == registration.activity_id).first()  
     
-    return db_attendance
+    # Create response object with names
+    attendance_dict = {
+        "id": db_attendance.id,
+        "registration_id": db_attendance.registration_id,
+        "attendance_date": db_attendance.attendance_date,
+        "status": db_attendance.status,
+        "notes": db_attendance.notes,
+        "student_name": f"{student.full_name}" if student else "Unknown",
+        "activity_name": activity.name if activity else "Unknown",
+        "created_at": db_attendance.created_at,
+        "updated_at": db_attendance.updated_at
+    }
+    return ActivityAttendanceResponse(**attendance_dict)
 
 @router.put("/attendance/{attendance_id}", response_model=ActivityAttendanceResponse)
 async def update_activity_attendance(
@@ -446,7 +672,7 @@ async def update_activity_attendance(
     current_user: User = Depends(get_school_user)
 ):
     """Update an activity attendance record"""
-    attendance = db.query(ActivityAttendance).filter(ActivityAttendance.id == attendance_id).first()
+    attendance = db.query(ActivityAttendance).filter(ActivityAttendance.id == attendance_id).first()  
     if not attendance:
         raise HTTPException(status_code=404, detail="Attendance record not found")
     
@@ -456,7 +682,40 @@ async def update_activity_attendance(
     
     db.commit()
     db.refresh(attendance)
-    return attendance
+    
+    # Add student and activity names to response
+    registration = db.query(ActivityRegistration).filter(ActivityRegistration.id == attendance.registration_id).first()  
+    if registration:
+        student = db.query(Student).filter(Student.id == registration.student_id).first()  
+        activity = db.query(Activity).filter(Activity.id == registration.activity_id).first()  
+        
+        # Create response object with names
+        attendance_dict = {
+            "id": attendance.id,
+            "registration_id": attendance.registration_id,
+            "attendance_date": attendance.attendance_date,
+            "status": attendance.status,
+            "notes": attendance.notes,
+            "student_name": f"{student.full_name}" if student else "Unknown",
+            "activity_name": activity.name if activity else "Unknown",
+            "created_at": attendance.created_at,
+            "updated_at": attendance.updated_at
+        }
+        return ActivityAttendanceResponse(**attendance_dict)
+    else:
+        # If registration not found, still create response object
+        attendance_dict = {
+            "id": attendance.id,
+            "registration_id": attendance.registration_id,
+            "attendance_date": attendance.attendance_date,
+            "status": attendance.status,
+            "notes": attendance.notes,
+            "student_name": "Unknown",
+            "activity_name": "Unknown",
+            "created_at": attendance.created_at,
+            "updated_at": attendance.updated_at
+        }
+        return ActivityAttendanceResponse(**attendance_dict)
 
 # Activity Reports
 @router.get("/reports/participation", response_model=List[ActivityParticipationReport])
@@ -467,24 +726,24 @@ async def get_activity_participation_report(
     current_user: User = Depends(get_school_user)
 ):
     """Get participation report for activities"""
-    query = db.query(Activity).filter(Activity.academic_year_id == academic_year_id)
+    query = db.query(Activity).filter(Activity.academic_year_id == academic_year_id)  
     
     if activity_type:
-        query = query.filter(Activity.activity_type == activity_type)
+        query = query.filter(Activity.activity_type == activity_type)  
     
     activities = query.all()
     reports = []
     
     for activity in activities:
         # Count registrations
-        total_registered = db.query(ActivityRegistration).filter(
+        total_registered = db.query(ActivityRegistration).filter(  
             and_(
                 ActivityRegistration.activity_id == activity.id,
                 ActivityRegistration.payment_status != "cancelled"
             )
         ).count()
         
-        total_paid = db.query(ActivityRegistration).filter(
+        total_paid = db.query(ActivityRegistration).filter(  
             and_(
                 ActivityRegistration.activity_id == activity.id,
                 ActivityRegistration.payment_status == "paid"
@@ -492,7 +751,7 @@ async def get_activity_participation_report(
         ).count()
         
         # Count attendance
-        total_attendance = db.query(ActivityAttendance).join(ActivityRegistration).filter(
+        total_attendance = db.query(ActivityAttendance).join(ActivityRegistration).filter(  
             and_(
                 ActivityRegistration.activity_id == activity.id,
                 ActivityAttendance.status == "present"
@@ -500,19 +759,20 @@ async def get_activity_participation_report(
         ).count()
         
         # Calculate attendance rate
-        total_possible_attendance = db.query(ActivityAttendance).join(ActivityRegistration).filter(
+        total_possible_attendance = db.query(ActivityAttendance).join(ActivityRegistration).filter(  
             ActivityRegistration.activity_id == activity.id
         ).count()
         
         attendance_rate = (total_attendance / total_possible_attendance * 100) if total_possible_attendance > 0 else 0
         
         # Calculate revenue
-        revenue_generated = db.query(func.sum(ActivityRegistration.payment_amount)).filter(
+        revenue_result = db.query(func.sum(ActivityRegistration.payment_amount)).filter(  
             and_(
                 ActivityRegistration.activity_id == activity.id,
                 ActivityRegistration.payment_status == "paid"
             )
-        ).scalar() or Decimal('0.00')
+        ).scalar()
+        revenue_generated = revenue_result or Decimal('0.00')
         
         reports.append(ActivityParticipationReport(
             activity_id=activity.id,
@@ -539,37 +799,62 @@ async def search_activities(
     current_user: User = Depends(get_school_user)
 ):
     """Search activities by name, description, or instructor"""
-    query = db.query(Activity).filter(Activity.is_active == True)
+    query = db.query(Activity).filter(Activity.is_active == True)  
     
     # Search in multiple fields
-    search_filter = (
+    search_filter = (  
         Activity.name.ilike(f"%{q}%") |
         Activity.description.ilike(f"%{q}%") |
         Activity.instructor_name.ilike(f"%{q}%") |
         Activity.location.ilike(f"%{q}%")
     )
     
-    query = query.filter(search_filter)
+    query = query.filter(search_filter)  
     
     if activity_type:
-        query = query.filter(Activity.activity_type == activity_type)
+        query = query.filter(Activity.activity_type == activity_type)  
     
     if session_type:
-        query = query.filter(
+        query = query.filter(  
             (Activity.session_type == session_type) | 
             (Activity.session_type == "both")
         )
     
-    activities = query.offset(skip).limit(limit).all()
+    activities = query.offset(skip).limit(limit).all()  
     
-    # Add current participants count
+    # Create response objects with current participants count
+    response_activities = []
     for activity in activities:
-        participant_count = db.query(ActivityRegistration).filter(
+        participant_count = db.query(ActivityRegistration).filter(  
             and_(
                 ActivityRegistration.activity_id == activity.id,
                 ActivityRegistration.payment_status != "cancelled"
             )
         ).count()
-        activity.current_participants = participant_count
+        
+        # Create a response object with the current_participants attribute
+        activity_dict = {
+            "id": activity.id,
+            "academic_year_id": activity.academic_year_id,
+            "name": activity.name,
+            "description": activity.description,
+            "activity_type": activity.activity_type,
+            "session_type": activity.session_type,
+            "target_grades": activity.target_grades,
+            "max_participants": activity.max_participants,
+            "cost_per_student": activity.cost_per_student,
+            "start_date": activity.start_date,
+            "end_date": activity.end_date,
+            "registration_deadline": activity.registration_deadline,
+            "location": activity.location,
+            "instructor_name": activity.instructor_name,
+            "requirements": activity.requirements,
+            "is_active": activity.is_active,
+            "current_participants": participant_count,
+            "images": activity.images,
+            "created_at": activity.created_at,
+            "updated_at": activity.updated_at
+        }
+        response_activities.append(ActivityResponse(**activity_dict))
     
-    return activities
+    return response_activities

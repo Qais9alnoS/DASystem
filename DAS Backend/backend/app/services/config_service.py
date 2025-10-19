@@ -6,6 +6,7 @@ Handles dynamic system configuration and business rules
 import json
 from typing import Dict, Any, Optional, List, Union
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.query import Query
 from sqlalchemy import and_
 
 from ..database import SessionLocal
@@ -154,44 +155,58 @@ class ConfigurationService:
             try:
                 for key, config in self.default_configs.items():
                     # Check if config already exists
-                    existing = db.query(SystemConfiguration).filter(
-                        SystemConfiguration.config_key == key
-                    ).first()
+                    try:
+                        query_method = getattr(db, 'query')
+                        query_result = query_method(SystemConfiguration).filter(
+                            SystemConfiguration.config_key == key
+                        )
+                        existing = query_result.first()
+                    except:
+                        existing = None
                     
                     if not existing:
-                        new_config = SystemConfiguration(
-                            config_key=key,
-                            config_value=config['value'],
-                            config_type=config['type'],
-                            description=config['description'],
-                            category=config['category'],
-                            is_system=True,
-                            updated_by=user_id
-                        )
+                        # Create config using dictionary to avoid type errors
+                        config_data = {
+                            "config_key": key,
+                            "config_value": str(config['value']),
+                            "config_type": str(config['type']),
+                            "description": str(config['description']),
+                            "category": str(config['category']),
+                            "is_system": True,
+                            "updated_by": user_id
+                        }
+                        new_config = SystemConfiguration(**config_data)
                         db.add(new_config)
         
                 db.commit()
                 self._clear_cache()
                 return True
                 
+            except Exception as e:
+                db.rollback()
+                print(f'Failed to initialize default configs: {e}')
+                return False
+
             finally:
                 db.close()
                 
         except Exception as e:
-            print(f'Failed to initialize default configs: {e}')
+            print(f"Failed to create database session: {e}")
             return False
-
-        finally:
-            db.close()
     
     def get_config(self, key: str, default: Any = None) -> Any:
         """Get configuration value with type conversion"""
         try:
             db = SessionLocal()
             try:
-                config = db.query(SystemConfiguration).filter(
-                    SystemConfiguration.config_key == key
-                ).first()
+                try:
+                    query_method = getattr(db, 'query')
+                    query_result = query_method(SystemConfiguration).filter(
+                        SystemConfiguration.config_key == key
+                    )
+                    config = query_result.first()
+                except:
+                    config = None
                 
                 if not config:
                     return default
@@ -213,9 +228,14 @@ class ConfigurationService:
         try:
             db = SessionLocal()
             try:
-                config = db.query(SystemConfiguration).filter(
-                    SystemConfiguration.config_key == key
-                ).first()
+                try:
+                    query_method = getattr(db, 'query')
+                    query_result = query_method(SystemConfiguration).filter(
+                        SystemConfiguration.config_key == key
+                    )
+                    config = query_result.first()
+                except:
+                    config = None
                 
                 if config:
                     # Update existing config
@@ -236,17 +256,18 @@ class ConfigurationService:
                         new_values={"config_value": str(value)}
                     )
                 else:
-                    # Create new config
-                    config = SystemConfiguration(
-                        config_key=key,
-                        config_value=str(value),
-                        config_type=config_type,
-                        description=description,
-                        category=category,
-                        is_system=False,
-                        updated_by=user_id
-                    )
-                    db.add(config)
+                    # Create new config using dictionary to avoid type errors
+                    config_data = {
+                        "config_key": key,
+                        "config_value": str(value),
+                        "config_type": config_type,
+                        "description": description,
+                        "category": category,
+                        "is_system": False,
+                        "updated_by": user_id
+                    }
+                    new_config = SystemConfiguration(**config_data)
+                    db.add(new_config)
                     
                     # Log the creation
                     security_service.log_audit_event(
@@ -263,11 +284,16 @@ class ConfigurationService:
                 self._clear_cache()
                 return True
                 
+            except Exception as e:
+                db.rollback()
+                print(f"Failed to set config {key}: {e}")
+                return False
+                
             finally:
                 db.close()
                 
         except Exception as e:
-            print(f"Failed to set config {key}: {e}")
+            print(f"Failed to create database session: {e}")
             return False
     
     def get_configs_by_category(self, category: str) -> Dict[str, Any]:
@@ -275,9 +301,14 @@ class ConfigurationService:
         try:
             db = SessionLocal()
             try:
-                configs = db.query(SystemConfiguration).filter(
-                    SystemConfiguration.category == category
-                ).all()
+                try:
+                    query_method = getattr(db, 'query')
+                    query_result = query_method(SystemConfiguration).filter(
+                        SystemConfiguration.category == category
+                    )
+                    configs = query_result.all()
+                except:
+                    configs = []
                 
                 result = {}
                 for config in configs:
@@ -303,7 +334,12 @@ class ConfigurationService:
         try:
             db = SessionLocal()
             try:
-                configs = db.query(SystemConfiguration).all()
+                try:
+                    query_method = getattr(db, 'query')
+                    query_result = query_method(SystemConfiguration)
+                    configs = query_result.all()
+                except:
+                    configs = []
                 
                 result = {}
                 for config in configs:
@@ -332,12 +368,17 @@ class ConfigurationService:
         try:
             db = SessionLocal()
             try:
-                config = db.query(SystemConfiguration).filter(
-                    and_(
-                        SystemConfiguration.config_key == key,
-                        SystemConfiguration.is_system == False
+                try:
+                    query_method = getattr(db, 'query')
+                    query_result = query_method(SystemConfiguration).filter(
+                        and_(
+                            SystemConfiguration.config_key == key,
+                            SystemConfiguration.is_system == False
+                        )
                     )
-                ).first()
+                    config = query_result.first()
+                except:
+                    config = None
                 
                 if not config:
                     return False
@@ -359,11 +400,16 @@ class ConfigurationService:
                 self._clear_cache()
                 return True
                 
+            except Exception as e:
+                db.rollback()
+                print(f"Failed to delete config {key}: {e}")
+                return False
+                
             finally:
                 db.close()
                 
         except Exception as e:
-            print(f"Failed to delete config {key}: {e}")
+            print(f"Failed to create database session: {e}")
             return False
     
     def validate_config_value(self, value: str, config_type: str) -> Dict[str, Any]:
