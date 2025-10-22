@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "DAS Management",
   "version": "0.0.0",
-  "identifier": "com.dasmgmt.app",
+  "identifier": "com.dasmgmt.management",
   "build": {
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "npm run watch",

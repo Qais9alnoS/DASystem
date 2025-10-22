@@ -13,11 +13,14 @@ python-dotenv==1.1.0
 pillow==11.1.0
 pytest==8.4.1
 pytest-asyncio==1.0.0
+aiohttp
 
 # Security and Authentication
 bcrypt==4.3.0
 slowapi==0.1.8
 python-magic==0.4.27
+python-jose==3.3.0
+passlib==1.7.4
 
 # File handling
 python-multipart==0.0.6

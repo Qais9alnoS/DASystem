@@ -15,6 +15,101 @@ from app.models.users import User
 
 router = APIRouter()
 
+# First-time setup endpoint
+@router.get("/first-run-check")
+async def check_first_run(
+    db: Session = Depends(get_db)
+):
+    """Check if this is the first run of the application"""
+    try:
+        # Check if any academic years exist
+        academic_years_count = db.query(AcademicYear).count()
+        
+        # Check first run setting
+        from app.models.system import SystemSetting
+        first_run_setting = db.query(SystemSetting).filter(
+            SystemSetting.setting_key == "first_run_completed"
+        ).first()
+        
+        is_first_run = academic_years_count == 0
+        
+        # Update the setting if needed
+        if first_run_setting:
+            if is_first_run and first_run_setting.setting_value != "false":
+                first_run_setting.setting_value = "false"
+                db.commit()
+            elif not is_first_run and first_run_setting.setting_value != "true":
+                first_run_setting.setting_value = "true"
+                db.commit()
+        elif academic_years_count > 0:
+            # Create the setting if it doesn't exist but years do
+            first_run_setting = SystemSetting(
+                setting_key="first_run_completed",
+                setting_value="true",
+                description="Indicates if the first run setup has been completed"
+            )
+            db.add(first_run_setting)
+            db.commit()
+        
+        return {
+            "is_first_run": is_first_run,
+            "message": "First run setup required" if is_first_run else "System already initialized"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to check first run status: {str(e)}"
+        )
+
+@router.post("/initialize-first-year", response_model=AcademicYearResponse)
+async def initialize_first_academic_year(
+    year_data: AcademicYearCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_director_user)
+):
+    """Initialize the first academic year (Director only)"""
+    try:
+        # Check if any academic years already exist
+        academic_years_count = db.query(AcademicYear).count()
+        if academic_years_count > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Academic years already exist. Use the regular create endpoint."
+            )
+        
+        # Create the first academic year
+        new_year = AcademicYear(**year_data.dict())
+        db.add(new_year)
+        db.commit()
+        db.refresh(new_year)
+        
+        # Update first run setting
+        from app.models.system import SystemSetting
+        first_run_setting = db.query(SystemSetting).filter(
+            SystemSetting.setting_key == "first_run_completed"
+        ).first()
+        
+        if first_run_setting:
+            first_run_setting.setting_value = "true"
+            db.commit()
+        else:
+            first_run_setting = SystemSetting(
+                setting_key="first_run_completed",
+                setting_value="true",
+                description="Indicates if the first run setup has been completed"
+            )
+            db.add(first_run_setting)
+            db.commit()
+        
+        return new_year
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to initialize first academic year: {str(e)}"
+        )
+
 # Academic Year Management
 @router.get("/years", response_model=List[AcademicYearResponse])
 async def get_academic_years(

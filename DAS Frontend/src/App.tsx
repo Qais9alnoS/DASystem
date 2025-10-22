@@ -9,12 +9,15 @@ import { AuthProvider, useAuth, ProtectedRoute } from '@/contexts/AuthContext';
 import { ProjectProvider } from '@/contexts/ProjectContext';
 import { DesktopLayout } from '@/components/layout/DesktopLayout';
 import { SplashScreen } from '@/components/SplashScreen';
+import { FirstRunSetup } from '@/components/FirstRunSetup';
 import LoginPage from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import StudentsPage from '@/pages/StudentsPage';
 import TeachersPage from '@/pages/TeachersPage';
 import AcademicYearsPage from '@/pages/AcademicYearsPage';
 import AcademicYearMigrationPage from '@/pages/AcademicYearMigrationPage';
+import AcademicYearSettingsPage from '@/pages/AcademicYearSettingsPage';
+import AcademicYearSelectionPage from '@/pages/AcademicYearSelectionPage';
 import { FinancialDashboardPage } from '@/pages/FinancialDashboardPage';
 import TreasurySystemPage from '@/pages/TreasurySystemPage';
 import { ClassesManagementPage } from '@/pages/ClassesManagementPage';
@@ -55,9 +58,88 @@ const queryClient = new QueryClient();
 // Protected Route Wrapper
 const ProtectedApp = () => {
   const { state } = useAuth();
+  const [needsFirstRunSetup, setNeedsFirstRunSetup] = useState(false);
+  const [checkingFirstRun, setCheckingFirstRun] = useState(true);
+  const [needsYearSelection, setNeedsYearSelection] = useState(false);
+
+  // Check if first run setup is needed
+  useEffect(() => {
+    const checkFirstRunStatus = async () => {
+      // Skip first run check if already completed in this session
+      const firstRunCompleted = localStorage.getItem('first_run_completed');
+      if (firstRunCompleted === 'true') {
+        // Check if year selection is needed
+        const autoOpenSetting = localStorage.getItem('auto_open_academic_year');
+        const selectedYearId = localStorage.getItem('selected_academic_year_id');
+        
+        if (autoOpenSetting === 'false' && !selectedYearId) {
+          setNeedsYearSelection(true);
+        }
+        setCheckingFirstRun(false);
+        return;
+      }
+
+      try {
+        // Import the API service dynamically to avoid circular dependencies
+        const { academicYearsApi } = await import('@/services/api');
+        const response = await academicYearsApi.checkFirstRun();
+        
+        if (response.success && response.data) {
+          setNeedsFirstRunSetup(response.data.is_first_run);
+          // If not first run, mark it as completed
+          if (!response.data.is_first_run) {
+            localStorage.setItem('first_run_completed', 'true');
+            
+            // Check if year selection is needed
+            const autoOpenSetting = localStorage.getItem('auto_open_academic_year');
+            const selectedYearId = localStorage.getItem('selected_academic_year_id');
+            
+            if (autoOpenSetting === 'false' && !selectedYearId) {
+              setNeedsYearSelection(true);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking first run status:', error);
+        // Continue with normal flow if check fails
+      } finally {
+        setCheckingFirstRun(false);
+      }
+    };
+
+    if (state.isAuthenticated) {
+      checkFirstRunStatus();
+    }
+  }, [state.isAuthenticated]);
 
   if (!state.isAuthenticated) {
     return <LoginPage />;
+  }
+
+  // Show loading state while checking
+  if (checkingFirstRun) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Show first run setup if needed
+  if (needsFirstRunSetup) {
+    return (
+      <FirstRunSetup 
+        onComplete={() => {
+          setNeedsFirstRunSetup(false);
+          localStorage.setItem('first_run_completed', 'true');
+        }} 
+      />
+    );
+  }
+
+  // Show year selection if needed
+  if (needsYearSelection) {
+    return <AcademicYearSelectionPage />;
   }
 
   return (
@@ -72,6 +154,8 @@ const ProtectedApp = () => {
         {/* Academic Management */}
         <Route path="academic-years" element={<AcademicYearsPage />} />
         <Route path="academic-years/migrate" element={<AcademicYearMigrationPage />} />
+        <Route path="academic-years/settings" element={<AcademicYearSettingsPage />} />
+        <Route path="academic-years/select" element={<AcademicYearSelectionPage />} />
         <Route path="classes" element={<ClassesManagementPage />} />
         <Route path="subjects" element={<SubjectsManagementPage />} />
 

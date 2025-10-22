@@ -82,6 +82,50 @@ async def startup_event():
     # Update database schema to match current models
     update_database_schema()
     
+    # Check if this is the first run (no academic years exist)
+    from app.database import SessionLocal
+    from app.models.academic import AcademicYear
+    from app.models.system import SystemSetting
+    
+    db = SessionLocal()
+    try:
+        # Check if any academic years exist
+        academic_years_count = db.query(AcademicYear).count()
+        if academic_years_count == 0:
+            # Mark this as first run in system settings
+            first_run_setting = db.query(SystemSetting).filter(
+                SystemSetting.setting_key == "first_run_completed"
+            ).first()
+            
+            if not first_run_setting:
+                first_run_setting = SystemSetting(
+                    setting_key="first_run_completed",
+                    setting_value="false",
+                    description="Indicates if the first run setup has been completed"
+                )
+                db.add(first_run_setting)
+                db.commit()
+        else:
+            # If academic years exist, mark first run as completed
+            first_run_setting = db.query(SystemSetting).filter(
+                SystemSetting.setting_key == "first_run_completed"
+            ).first()
+            
+            if first_run_setting:
+                first_run_setting.setting_value = "true"
+                db.commit()
+            elif academic_years_count > 0:
+                # Create the setting if it doesn't exist but years do
+                first_run_setting = SystemSetting(
+                    setting_key="first_run_completed",
+                    setting_value="true",
+                    description="Indicates if the first run setup has been completed"
+                )
+                db.add(first_run_setting)
+                db.commit()
+    finally:
+        db.close()
+    
     await create_default_admin()
     
     # Initialize default system configurations

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { directorApi } from '@/services/api';
 import {
@@ -25,6 +26,14 @@ interface DashboardStats {
     recent_activities: any[];
     total_rewards: number;
     total_assistance: number;
+    academic_years?: Array<{id: number; year_name: string; is_active: boolean}>;
+    selected_year_id?: number | null;
+}
+
+interface AcademicYear {
+    id: number;
+    year_name: string;
+    is_active: boolean;
 }
 
 export function DirectorDashboardPage() {
@@ -32,15 +41,18 @@ export function DirectorDashboardPage() {
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
 
     useEffect(() => {
         fetchDashboardStats();
-    }, []);
+    }, [selectedYearId]);
 
     const fetchDashboardStats = async () => {
         try {
             setLoading(true);
-            const response = await directorApi.getDashboardStats();
+            // Pass the selected year ID as a query parameter
+            const response = await directorApi.getDashboardStats(selectedYearId);
+            
             if (response.success && response.data) {
                 // Ensure the data matches our DashboardStats interface
                 const dashboardData: DashboardStats = {
@@ -52,9 +64,17 @@ export function DirectorDashboardPage() {
                     active_activities: response.data.active_activities ?? 0,
                     recent_activities: Array.isArray(response.data.recent_activities) ? response.data.recent_activities : [],
                     total_rewards: response.data.total_rewards ?? 0,
-                    total_assistance: response.data.total_assistance ?? 0
+                    total_assistance: response.data.total_assistance ?? 0,
+                    academic_years: response.data.academic_years || [],
+                    selected_year_id: response.data.selected_year_id || null
                 };
+                
                 setStats(dashboardData);
+                
+                // Set the selected year ID if not already set
+                if (selectedYearId === null && response.data.selected_year_id) {
+                    setSelectedYearId(response.data.selected_year_id);
+                }
             } else {
                 // Handle case where response is not successful but no error was thrown
                 setStats({
@@ -66,7 +86,9 @@ export function DirectorDashboardPage() {
                     active_activities: 0,
                     recent_activities: [],
                     total_rewards: 0,
-                    total_assistance: 0
+                    total_assistance: 0,
+                    academic_years: [],
+                    selected_year_id: null
                 });
                 toast({
                     title: "تنبيه",
@@ -86,7 +108,9 @@ export function DirectorDashboardPage() {
                 active_activities: 0,
                 recent_activities: [],
                 total_rewards: 0,
-                total_assistance: 0
+                total_assistance: 0,
+                academic_years: [],
+                selected_year_id: null
             });
             toast({
                 title: "خطأ في تحميل إحصائيات لوحة التحكم",
@@ -118,6 +142,11 @@ export function DirectorDashboardPage() {
         }
     };
 
+    const handleYearChange = (value: string) => {
+        const yearId = value === "all" ? null : parseInt(value);
+        setSelectedYearId(yearId);
+    };
+
     const formatCurrency = (amount: number) => {
         // Format as ليرة without using IQD currency code
         return `${new Intl.NumberFormat('ar-IQ', {
@@ -136,24 +165,44 @@ export function DirectorDashboardPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold">لوحة تحكم المدير</h1>
                     <p className="text-muted-foreground mt-2">نظرة شاملة على أداء المدرسة</p>
                 </div>
-                <Button onClick={handleRefresh} disabled={refreshing}>
-                    {refreshing ? (
-                        <>
-                            <RefreshCw className="h-4 w-4 ml-2 animate-spin" />
-                            جاري التحديث...
-                        </>
-                    ) : (
-                        <>
-                            <RefreshCw className="h-4 w-4 ml-2" />
-                            تحديث البيانات
-                        </>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    {stats?.academic_years && stats.academic_years.length > 0 && (
+                        <Select 
+                            value={selectedYearId?.toString() || "all"} 
+                            onValueChange={handleYearChange}
+                        >
+                            <SelectTrigger className="w-full sm:w-[200px] rounded-full">
+                                <SelectValue placeholder="اختر سنة دراسية" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">جميع السنوات</SelectItem>
+                                {stats.academic_years.map((year) => (
+                                    <SelectItem key={year.id} value={year.id.toString()}>
+                                        {year.year_name} {year.is_active ? "(نشطة)" : ""}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     )}
-                </Button>
+                    <Button onClick={handleRefresh} disabled={refreshing} className="rounded-full">
+                        {refreshing ? (
+                            <>
+                                <RefreshCw className="h-4 w-4 ml-2 animate-spin" />
+                                جاري التحديث...
+                            </>
+                        ) : (
+                            <>
+                                <RefreshCw className="h-4 w-4 ml-2" />
+                                تحديث البيانات
+                            </>
+                        )}
+                    </Button>
+                </div>
             </div>
 
             {/* Stats Grid */}

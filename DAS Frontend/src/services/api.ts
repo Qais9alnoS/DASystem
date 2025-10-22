@@ -433,6 +433,19 @@ export const academicYearsApi = {
     return apiClient.delete<void>(`/academic/years/${id}`);
   },
 
+  // First-run setup methods
+  checkFirstRun: async () => {
+    return apiClient.get<{ is_first_run: boolean; message: string }>('/academic/first-run-check');
+  },
+
+  initializeFirstYear: async (academicYear: Omit<AcademicYear, 'id' | 'created_at' | 'updated_at'>) => {
+    return apiClient.post<AcademicYear>('/academic/initialize-first-year', academicYear);
+  },
+  
+  updateConfiguration: async (key: string, value: string, config_type: string = "string", description?: string, category?: string) => {
+    return apiClient.put<any>(`/advanced/config/${key}`, { value, config_type, description, category });
+  },
+
   migratePreview: async (data: { from_year_id: number; to_year_id: number }) => {
     return apiClient.post<any>('/academic/years/migrate/preview', data);
   },
@@ -911,8 +924,9 @@ export const directorApi = {
     return apiClient.delete<void>(`/director/assistance/${id}`);
   },
 
-  getDashboardStats: async () => {
-    return apiClient.get<any>('/director/dashboard');
+  getDashboardStats: async (academic_year_id?: number | null) => {
+    const params = academic_year_id !== null && academic_year_id !== undefined ? `?academic_year_id=${academic_year_id}` : '';
+    return apiClient.get<any>(`/director/dashboard${params}`);
   }
 };
 

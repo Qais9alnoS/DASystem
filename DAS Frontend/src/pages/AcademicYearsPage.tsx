@@ -11,7 +11,6 @@ import {
     BookOpen,
     Users,
     GraduationCap,
-    Settings,
     Archive,
     CheckCircle,
     Clock,
@@ -24,6 +23,7 @@ import { AcademicYear } from '@/types/school';
 import { IOSNavbar } from '@/components/ui/ios-navbar';
 import { IOSTabBar } from '@/components/ui/ios-tabbar';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { Link } from 'react-router-dom';
 
 const AcademicYearsPage = () => {
     const [activeTab, setActiveTab] = useState('overview');
@@ -172,6 +172,22 @@ const AcademicYearsPage = () => {
                         </CardContent>
                     </Card>
                 )}
+
+                {/* Settings Link */}
+                <div className="mb-6">
+                    <Link to="/academic-years/settings" className="flex items-center justify-between p-4 bg-muted rounded-2xl hover:bg-muted/80 transition-colors">
+                        <div className="flex items-center space-x-3 space-x-reverse">
+                            <div className="p-2 rounded-full bg-secondary/10">
+                                <Settings className="h-5 w-5 text-secondary" />
+                            </div>
+                            <div>
+                                <h3 className="font-medium">إعدادات السنة الدراسية</h3>
+                                <p className="text-sm text-muted-foreground">إدارة إعدادات التشغيل التلقائي</p>
+                            </div>
+                        </div>
+                        <div className="i-lucide-chevron-left text-muted-foreground" />
+                    </Link>
+                </div>
 
                 {/* Segmented Control for Tabs */}
                 <div className="mb-6">

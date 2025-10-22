@@ -22,61 +22,66 @@ router = APIRouter(tags=["Director Dashboard"])
 
 @router.get("/dashboard")
 async def get_director_dashboard(
+    academic_year_id: Optional[int] = None,
     current_user: User = Depends(get_director_user),
     db: Session = Depends(get_db)
 ):
     """Get comprehensive dashboard statistics for director"""
     try:
-        # Get current active academic year
-        current_academic_year = db.query(AcademicYear).filter(
-            AcademicYear.is_active == True
-        ).first()
-        
-        academic_year_id = current_academic_year.id if current_academic_year else None
+        # If academic_year_id is not provided, get the active academic year
+        current_academic_year = None
+        if academic_year_id is None:
+            current_academic_year = db.query(AcademicYear).filter(
+                AcademicYear.is_active == True
+            ).first()
+            
+            # If there's an active year, use its ID
+            if current_academic_year:
+                academic_year_id = current_academic_year.id
         
         # Student Statistics
-        total_students_query = db.query(Student)
-        if academic_year_id:
-            total_students_query = total_students_query.filter(
+        student_query = db.query(Student)
+        if academic_year_id is not None:
+            student_query = student_query.filter(
                 Student.academic_year_id == academic_year_id
             )
-        total_students = total_students_query.count()
+        total_students = student_query.count()
         
         # Teacher Statistics
-        total_teachers_query = db.query(Teacher)
-        if academic_year_id:
-            total_teachers_query = total_teachers_query.filter(
+        teacher_query = db.query(Teacher)
+        if academic_year_id is not None:
+            teacher_query = teacher_query.filter(
                 Teacher.academic_year_id == academic_year_id
             )
-        total_teachers = total_teachers_query.count()
+        total_teachers = teacher_query.count()
         
         # Class Statistics
-        total_classes_query = db.query(Class)
-        if academic_year_id:
-            total_classes_query = total_classes_query.filter(
+        class_query = db.query(Class)
+        if academic_year_id is not None:
+            class_query = class_query.filter(
                 Class.academic_year_id == academic_year_id
             )
-        total_classes = total_classes_query.count()
+        total_classes = class_query.count()
         
         # Subject Statistics (need to join with Class since Subject doesn't have academic_year_id directly)
         # Use func.count() instead of .count() to avoid issues with column selection
-        total_subjects_query = db.query(func.count(Subject.id))
-        if academic_year_id:
-            total_subjects_query = total_subjects_query.join(Class).filter(
+        subject_query = db.query(func.count(Subject.id))
+        if academic_year_id is not None:
+            subject_query = subject_query.join(Class).filter(
                 Class.academic_year_id == academic_year_id
             )
-        total_subjects = total_subjects_query.scalar()
+        total_subjects = subject_query.scalar()
         
         # Activity Statistics
-        active_activities_query = db.query(Activity)
-        if academic_year_id:
-            active_activities_query = active_activities_query.filter(
+        activity_query = db.query(Activity)
+        if academic_year_id is not None:
+            activity_query = activity_query.filter(
                 and_(
                     Activity.academic_year_id == academic_year_id,
                     Activity.is_active == True
                 )
             )
-        active_activities = active_activities_query.count()
+        active_activities = activity_query.count()
         
         # Financial Statistics (Monthly Revenue)
         monthly_revenue = 0
@@ -88,7 +93,7 @@ async def get_director_dashboard(
             FinanceTransaction.transaction_date >= thirty_days_ago
         ]
         
-        if academic_year_id:
+        if academic_year_id is not None:
             revenue_filters.append(FinanceTransaction.academic_year_id == academic_year_id)
             
         revenue_query = revenue_query.filter(and_(*revenue_filters))
@@ -102,6 +107,9 @@ async def get_director_dashboard(
         # Recent activities (Placeholder)
         recent_activities = []
         
+        # Get all academic years for dropdown/selection
+        all_academic_years = db.query(AcademicYear).order_by(AcademicYear.created_at.desc()).all()
+        
         return {
             "total_students": total_students,
             "total_teachers": total_teachers,
@@ -111,7 +119,13 @@ async def get_director_dashboard(
             "active_activities": active_activities,
             "total_rewards": total_rewards,
             "total_assistance": total_assistance,
-            "recent_activities": recent_activities
+            "recent_activities": recent_activities,
+            "academic_years": [{
+                "id": year.id,
+                "year_name": year.year_name,
+                "is_active": year.is_active
+            } for year in all_academic_years],
+            "selected_year_id": academic_year_id
         }
         
     except Exception as e:
