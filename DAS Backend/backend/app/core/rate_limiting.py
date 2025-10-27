@@ -158,7 +158,9 @@ async def security_headers_middleware(request: Request, call_next):
 
 def create_custom_rate_limit_handler():
     """Create custom rate limit exceeded handler"""
-    async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    async def rate_limit_handler(request: Request, exc: Exception):
+        # Cast to RateLimitExceeded
+        rate_exc = exc  # type: ignore
         client_ip = get_remote_address(request)
         
         # Log rate limit violation
@@ -170,7 +172,7 @@ def create_custom_rate_limit_handler():
             new_values={
                 "path": str(request.url),
                 "method": request.method,
-                "limit": str(exc.detail)
+                "limit": str(rate_exc.detail)  # type: ignore
             }
         )
         

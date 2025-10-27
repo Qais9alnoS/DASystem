@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
-import { activitiesApi, classesApi, studentsApi } from '@/services/realApi';
+import { activitiesApi, classesApi, studentsApi } from '@/services/api';
 import { ActivityParticipant, Class, Student, StudentSearchResult } from '@/types/school';
 import { Search, Users, Loader2, Save, X } from 'lucide-react';
 

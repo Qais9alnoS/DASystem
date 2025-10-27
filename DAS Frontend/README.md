@@ -40,14 +40,6 @@ The application will be available at http://localhost:3001
 
 This frontend requires the School Management System backend to be running. Please ensure the backend server is started before using the frontend application.
 
-## Documentation
-
-For detailed information about the implementation, please refer to:
-
-- [todo.md](todo.md) - Implementation plan and progress tracking
-- [FINAL_PROJECT_SUMMARY.md](FINAL_PROJECT_SUMMARY.md) - Comprehensive project summary
-- Individual component files for specific implementation details
-
 ## Technologies Used
 
 This project is built with modern web technologies:

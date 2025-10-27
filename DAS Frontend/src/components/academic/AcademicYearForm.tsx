@@ -21,6 +21,7 @@ import {
     GraduationCap
 } from 'lucide-react';
 import { academicYearsApi } from '@/services/api';
+import { AcademicYear } from '@/types/school';
 import { useToast } from '@/hooks/use-toast';
 
 // Academic Year Schema
@@ -61,10 +62,9 @@ export const AcademicYearForm: React.FC<AcademicYearFormProps> = ({
     } = useForm<AcademicYearFormData>({
         resolver: zodResolver(academicYearSchema),
         defaultValues: {
-            year_name: '',
-            description: '',
-            is_active: false,
-            ...initialData
+            year_name: initialData?.year_name || '',
+            description: initialData?.description || '',
+            is_active: initialData?.is_active || false
         }
     });
 
@@ -76,14 +76,29 @@ export const AcademicYearForm: React.FC<AcademicYearFormProps> = ({
             // Call the real API to create/update academic year
             let response;
             if (mode === 'create') {
-                response = await academicYearsApi.create(data);
+                // Convert the form data to the expected API format
+                const apiData: Omit<AcademicYear, 'id' | 'created_at' | 'updated_at'> = {
+                    year_name: data.year_name,
+                    description: data.description,
+                    is_active: data.is_active
+                };
+                response = await academicYearsApi.create(apiData);
             } else {
                 // For edit mode, we would need an ID
                 // response = await academicYearsApi.update(academicYearId, data);
-                throw new Error('Edit mode not implemented yet');
+                throw new Error('وضع التحرير غير مُطبق بعد');
             }
             
+            // Handle both response formats
+            let resultData;
             if (response.success) {
+                resultData = response.data;
+            } else {
+                // Direct data format
+                resultData = response as unknown as AcademicYear;
+            }
+            
+            if (resultData) {
                 toast({
                     title: "نجاح",
                     description: `تم ${mode === 'create' ? 'إنشاء' : 'تحديث'} السنة الدراسية بنجاح!`,
@@ -100,7 +115,7 @@ export const AcademicYearForm: React.FC<AcademicYearFormProps> = ({
         } catch (error) {
             toast({
                 title: "خطأ",
-                description: error instanceof Error ? error.message : 'حدث خطأ أثناء حفظ البيانات',
+                description: error instanceof Error ? error.message : 'حدث خطأ أثناء الحفظ',
                 variant: "destructive"
             });
         } finally {
@@ -211,9 +226,9 @@ export const AcademicYearForm: React.FC<AcademicYearFormProps> = ({
                         {/* Active Status */}
                         <div className="flex items-center justify-between p-4 border rounded-lg">
                             <div className="space-y-1">
-                                <Label className="text-base font-medium">تفعيل السنة الدراسية</Label>
+                                <Label className="text-base font-medium">تعيين كافتراضية</Label>
                                 <p className="text-sm text-muted-foreground">
-                                    السنة الدراسية النشطة هي التي يتم العمل بها حالياً
+                                    السنة الدراسية الافتراضية سيتم اختيارها تلقائياً عند الوصول إلى التطبيق
                                 </p>
                             </div>
                             <Controller
@@ -299,7 +314,7 @@ export const AcademicYearForm: React.FC<AcademicYearFormProps> = ({
                     <Button
                         type="submit"
                         disabled={!isValid || isSubmitting}
-                        className="flex items-center space-x-2 space-x-reverse btn-premium"
+                        className="flex items-center space-x-2 space-x-reverse"
                     >
                         <Save className="w-4 h-4" />
                         <span>

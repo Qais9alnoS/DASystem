@@ -1,8 +1,13 @@
 from sqlalchemy import create_engine, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import MetaData  # Added import
+from typing import TYPE_CHECKING
 from app.config import settings
 import os
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.declarative import DeclarativeMeta
 
 # Create database directory if it doesn't exist
 db_path = settings.DATABASE_URL.replace("sqlite:///", "")
@@ -24,6 +29,10 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# Adding type annotation to help type checkers
+if TYPE_CHECKING:
+    Base: DeclarativeMeta
 
 def get_db():
     """Database dependency for FastAPI"""

@@ -90,36 +90,40 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         }
     )
 
-async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handler for HTTP exceptions"""
+    # Cast to HTTPException to access status_code and detail
+    http_exc = exc
     client_ip = request.client.host if request.client else "unknown"
     
     # Log HTTP errors (except 404s to avoid spam)
-    if exc.status_code != 404:
+    if http_exc.status_code != 404:  # type: ignore
         security_service.log_audit_event(
             user_id=None,
             action="HTTP_EXCEPTION",
             table_name="http_errors",
             ip_address=client_ip,
             new_values={
-                "status_code": exc.status_code,
-                "detail": exc.detail,
+                "status_code": http_exc.status_code,  # type: ignore
+                "detail": http_exc.detail,  # type: ignore
                 "path": str(request.url),
                 "method": request.method
             }
         )
     
     return JSONResponse(
-        status_code=exc.status_code,
+        status_code=http_exc.status_code,  # type: ignore
         content={
-            "detail": exc.detail,
+            "detail": http_exc.detail,  # type: ignore
             "type": "http_exception",
-            "status_code": exc.status_code
+            "status_code": http_exc.status_code  # type: ignore
         }
     )
 
-async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+async def validation_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handler for request validation errors"""
+    # Cast to RequestValidationError
+    validation_exc = exc  # type: ignore
     client_ip = request.client.host if request.client else "unknown"
     
     # Log validation errors
@@ -129,7 +133,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         table_name="validation_errors",
         ip_address=client_ip,
         new_values={
-            "errors": exc.errors(),
+            "errors": validation_exc.errors(),  # type: ignore
             "path": str(request.url),
             "method": request.method
         }
@@ -145,7 +149,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             return [ensure_jsonable(v) for v in value]
         return value
 
-    serialized_errors = [ensure_jsonable(err) for err in exc.errors()]
+    serialized_errors = [ensure_jsonable(err) for err in validation_exc.errors()]  # type: ignore
 
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -156,20 +160,22 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         }
     )
 
-async def database_exception_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+async def database_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handler for database exceptions"""
+    # Cast to SQLAlchemyError
+    db_exc = exc  # type: ignore
     client_ip = request.client.host if request.client else "unknown"
     
     # Log database errors
-    logger.error(f"Database error: {str(exc)}")
+    logger.error(f"Database error: {str(db_exc)}")  # type: ignore
     security_service.log_audit_event(
         user_id=None,
         action="DATABASE_ERROR",
         table_name="database_errors",
         ip_address=client_ip,
         new_values={
-            "error_type": type(exc).__name__,
-            "error_message": str(exc),
+            "error_type": type(db_exc).__name__,  # type: ignore
+            "error_message": str(db_exc),  # type: ignore
             "path": str(request.url),
             "method": request.method
         }
@@ -180,7 +186,7 @@ async def database_exception_handler(request: Request, exc: SQLAlchemyError) -> 
         recipient_role="director",
         recipient_id=None,
         title="Database Error Alert",
-        message=f"Database error occurred: {type(exc).__name__}",
+        message=f"Database error occurred: {type(db_exc).__name__}",  # type: ignore
         notification_type="error"
     )
     

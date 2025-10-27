@@ -113,7 +113,26 @@ class ApiClient {
       }
 
       const data = await response.json();
-      return data;
+      
+      // Handle both response formats:
+      // 1. Direct data (standard API response)
+      // 2. Wrapped response with success/data properties
+      if (data && typeof data === 'object' && 'success' in data) {
+        // Wrapped response format
+        return {
+          success: data.success,
+          data: data.data,
+          message: data.message,
+          errors: data.errors,
+          detail: data.detail
+        };
+      } else {
+        // Direct data format (standard API response)
+        return {
+          success: true,
+          data: data
+        };
+      }
     } catch (error) {
       clearTimeout(timeoutId);
 
@@ -243,6 +262,10 @@ export const subjectsApi = {
 
   update: async (id: number, subject: Partial<Subject>) => {
     return apiClient.put<Subject>(`/academic/subjects/${id}`, subject);
+  },
+
+  delete: async (id: number) => {
+    return apiClient.delete<{ message: string }>(`/academic/subjects/${id}`);
   },
 };
 
