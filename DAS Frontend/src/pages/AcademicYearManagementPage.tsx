@@ -20,8 +20,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { IOSSwitch } from '@/components/ui/ios-switch';
 
-export const AcademicYearManagementPage: React.FC = () => {
+interface AcademicYearManagementPageProps {
+  onYearSelected?: () => void;
+}
+
+export const AcademicYearManagementPage: React.FC<AcademicYearManagementPageProps> = ({ onYearSelected }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -29,6 +34,15 @@ export const AcademicYearManagementPage: React.FC = () => {
   const [editingYear, setEditingYear] = useState<AcademicYear | null>(null);
   const [deleteYearId, setDeleteYearId] = useState<number | null>(null);
   const [deleteYearName, setDeleteYearName] = useState<string>('');
+  const [currentYearId, setCurrentYearId] = useState<number | null>(null);
+
+  // Get current academic year from localStorage
+  useEffect(() => {
+    const selectedYearId = localStorage.getItem('selected_academic_year_id');
+    if (selectedYearId) {
+      setCurrentYearId(parseInt(selectedYearId, 10));
+    }
+  }, []);
 
   // Fetch academic years
   const { data: academicYears, isLoading, isError } = useQuery<AcademicYear[]>({
@@ -57,15 +71,13 @@ export const AcademicYearManagementPage: React.FC = () => {
         return response as unknown as AcademicYear;
       }
     },
-    onSuccess: (newYear) => {
+    onSuccess: (newYear, variables, context) => {
       queryClient.invalidateQueries({ queryKey: ['academicYears'] });
       setShowForm(false);
       setEditingYear(null);
       
-      // If this is the first year or it's set as active, select it automatically
-      if (academicYears?.length === 0 || newYear.is_active) {
-        handleSelectYear(newYear);
-      }
+      // Always refresh the academic years data to get the latest count
+      queryClient.refetchQueries({ queryKey: ['academicYears'] });
       
       toast({
         title: "نجاح",
@@ -94,19 +106,32 @@ export const AcademicYearManagementPage: React.FC = () => {
         return response as unknown as AcademicYear;
       }
     },
-    onSuccess: (updatedYear) => {
+    onSuccess: (updatedYear, variables) => {
       queryClient.invalidateQueries({ queryKey: ['academicYears'] });
       
-      // If this year is set as active, select it
-      if (updatedYear.is_active) {
-        handleSelectYear(updatedYear);
+      // Only show toast when changing year properties (not when just selecting)
+      if (editingYear) {
+        toast({
+          title: "نجاح",
+          description: "تم تحديث السنة الدراسية بنجاح!",
+          variant: "default",
+        });
+        
+        // Close form after update
+        setShowForm(false);
+        setEditingYear(null);
+      } else {
+        // This is a default toggle operation
+        // Update localStorage to reflect the default year setting
+        if (updatedYear.is_active) {
+          localStorage.setItem('auto_open_academic_year', 'true');
+        } else {
+          localStorage.setItem('auto_open_academic_year', 'false');
+        }
       }
       
-      toast({
-        title: "نجاح",
-        description: "تم تحديث السنة الدراسية بنجاح!",
-        variant: "default",
-      });
+      // Don't automatically select the year when just setting it as default
+      // The user can click on the year to enter it
     },
     onError: (error: Error) => {
       toast({
@@ -167,18 +192,23 @@ export const AcademicYearManagementPage: React.FC = () => {
       localStorage.setItem('auto_open_academic_year', 'false');
     }
     
+    // Notify parent component that a year has been selected
+    if (onYearSelected) {
+      onYearSelected();
+    }
+    
     // Navigate to main dashboard
-    navigate('/dashboard');
+    // The parent component will handle navigation, so we don't need to navigate here
   };
 
-  // Handle setting as default (active)
+  // Handle setting as default (active) - toggle functionality
   const handleSetAsDefault = (year: AcademicYear) => {
-    // Update the year to be active
+    // If the year is already active, deactivate it
+    // Otherwise, activate it (which will deactivate others)
     updateMutation.mutate({ 
       id: year.id!, 
       year: { 
-        ...year,
-        is_active: true
+        is_active: !year.is_active
       } 
     });
   };
@@ -191,6 +221,16 @@ export const AcademicYearManagementPage: React.FC = () => {
 
   // Handle delete year - show confirmation dialog
   const handleDeleteYear = (year: AcademicYear) => {
+    // Check if this is the current year
+    if (currentYearId === year.id) {
+      toast({
+        title: "تحذير",
+        description: "لا يمكنك حذف السنة الدراسية الحالية. يرجى تغيير السنة أولاً.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setDeleteYearId(year.id!);
     setDeleteYearName(year.year_name);
   };
@@ -316,14 +356,8 @@ export const AcademicYearManagementPage: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center space-x-2">
-                          {year.is_active && (
-                            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full flex items-center">
-                              <Check className="w-3 h-3 mr-1" />
-                              الافتراضية
-                            </span>
-                          )}
-                          <div className="flex space-x-1">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex space-x-2">
                             <Button
                               variant="outline"
                               size="sm"
@@ -334,16 +368,18 @@ export const AcademicYearManagementPage: React.FC = () => {
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
+                            <div 
+                              className="flex items-center justify-center mx-1"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleSetAsDefault(year);
                               }}
                             >
-                              تعيين كافتراضية
-                            </Button>
+                              <span className="text-xs text-muted-foreground mr-2">افتراضية</span>
+                              <IOSSwitch 
+                                checked={year.is_active}
+                                onCheckedChange={() => handleSetAsDefault(year)}
+                              />
+                            </div>
                             <Button
                               variant="outline"
                               size="sm"

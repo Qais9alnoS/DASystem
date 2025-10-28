@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useForm, Controller } from 'react-hook-form';
@@ -20,6 +19,7 @@ import {
     Users,
     GraduationCap
 } from 'lucide-react';
+import { IOSSwitch } from '@/components/ui/ios-switch';
 import { academicYearsApi } from '@/services/api';
 import { AcademicYear } from '@/types/school';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +39,7 @@ type AcademicYearFormData = z.infer<typeof academicYearSchema>;
 interface AcademicYearFormProps {
     onSubmit?: (data: AcademicYearFormData) => void;
     onCancel?: () => void;
-    initialData?: Partial<AcademicYearFormData>;
+    initialData?: Partial<AcademicYearFormData> & { id?: number };
     mode?: 'create' | 'edit';
 }
 
@@ -74,7 +74,8 @@ export const AcademicYearForm: React.FC<AcademicYearFormProps> = ({
         setIsSubmitting(true);
         try {
             // Call the real API to create/update academic year
-            let response;
+            let resultData;
+            let responseMessage = '';
             if (mode === 'create') {
                 // Convert the form data to the expected API format
                 const apiData: Omit<AcademicYear, 'id' | 'created_at' | 'updated_at'> = {
@@ -82,20 +83,32 @@ export const AcademicYearForm: React.FC<AcademicYearFormProps> = ({
                     description: data.description,
                     is_active: data.is_active
                 };
-                response = await academicYearsApi.create(apiData);
+                const createResponse = await academicYearsApi.create(apiData);
+                responseMessage = createResponse.message || '';
+                
+                // Handle both response formats
+                if (createResponse.success) {
+                    resultData = createResponse.data;
+                } else {
+                    // Direct data format
+                    resultData = createResponse as unknown as AcademicYear;
+                }
             } else {
-                // For edit mode, we would need an ID
-                // response = await academicYearsApi.update(academicYearId, data);
-                throw new Error('وضع التحرير غير مُطبق بعد');
-            }
-            
-            // Handle both response formats
-            let resultData;
-            if (response.success) {
-                resultData = response.data;
-            } else {
-                // Direct data format
-                resultData = response as unknown as AcademicYear;
+                // For edit mode, we need an ID
+                if (!initialData?.id) {
+                    throw new Error('معرف السنة الدراسية مطلوب للتحرير');
+                }
+                
+                const updateResponse = await academicYearsApi.update(initialData.id, data);
+                responseMessage = updateResponse.message || '';
+                
+                // Handle both response formats
+                if (updateResponse.success) {
+                    resultData = updateResponse.data;
+                } else {
+                    // Direct data format
+                    resultData = updateResponse as unknown as AcademicYear;
+                }
             }
             
             if (resultData) {
@@ -109,15 +122,35 @@ export const AcademicYearForm: React.FC<AcademicYearFormProps> = ({
                 if (onSubmit) {
                     await onSubmit(data);
                 }
+                
+                // If this is edit mode, close the form after successful update
+                if (mode === 'edit' && onCancel) {
+                    // Small delay to allow toast to be seen
+                    setTimeout(() => {
+                        onCancel();
+                    }, 1000);
+                }
             } else {
-                throw new Error(response.message || `فشل في ${mode === 'create' ? 'إنشاء' : 'تحديث'} السنة الدراسية`);
+                throw new Error(responseMessage || `فشل في ${mode === 'create' ? 'إنشاء' : 'تحديث'} السنة الدراسية`);
             }
-        } catch (error) {
-            toast({
-                title: "خطأ",
-                description: error instanceof Error ? error.message : 'حدث خطأ أثناء الحفظ',
-                variant: "destructive"
-            });
+        } catch (error: any) {
+            // Check if this is a duplicate year error
+            const errorMessage = error instanceof Error ? error.message : 'حدث خطأ أثناء الحفظ';
+            
+            // Show a more user-friendly error message for duplicate years
+            if (errorMessage.includes('already exists') || errorMessage.includes('موجودة')) {
+                toast({
+                    title: "خطأ",
+                    description: "السنة الدراسية موجودة بالفعل. يرجى اختيار اسم مختلف.",
+                    variant: "destructive"
+                });
+            } else {
+                toast({
+                    title: "خطأ",
+                    description: errorMessage,
+                    variant: "destructive"
+                });
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -235,7 +268,7 @@ export const AcademicYearForm: React.FC<AcademicYearFormProps> = ({
                                 name="is_active"
                                 control={control}
                                 render={({ field }) => (
-                                    <Switch
+                                    <IOSSwitch
                                         checked={field.value}
                                         onCheckedChange={field.onChange}
                                     />

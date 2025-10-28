@@ -117,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 } catch (error) {
                     localStorage.removeItem('das_token');
                     localStorage.removeItem('das_user');
-                    dispatch({ type: 'AUTH_ERROR', payload: 'Session expired' });
+                    dispatch({ type: 'AUTH_LOGOUT' }); // Changed from AUTH_ERROR to AUTH_LOGOUT
                 }
             }
         };

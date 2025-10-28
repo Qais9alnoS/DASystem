@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
-import { NavLink, useParams } from 'react-router-dom';
+import { NavLink, useParams, useLocation } from 'react-router-dom';
 import { useProject } from '@/contexts/ProjectContext';
 import {
   LayoutDashboard,
@@ -66,6 +66,7 @@ import {
 
 const Sidebar = ({ isCollapsed, setIsCollapsed, sidebarWidth }) => {
   const { projectId } = useParams();
+  const location = useLocation();
   const { state } = useProject();
   const { projects } = state;
 
@@ -76,6 +77,21 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, sidebarWidth }) => {
 
   // Determine if we should show text based on sidebar width
   const showText = sidebarWidth > 100;
+
+  // Navigation items
+  const navItems = [
+    {
+      name: 'لوحة التحكم',
+      href: '/dashboard',
+      icon: LayoutDashboard,
+    },
+    {
+      name: 'السنوات الدراسية',
+      href: '/academic-years',
+      icon: Calendar,
+    },
+    // Add more navigation items here as needed
+  ];
 
   return (
     <div className={`h-full flex flex-col ${isCollapsed ? 'w-16' : 'w-64'} transition-all duration-300`} dir="rtl">
@@ -110,9 +126,31 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, sidebarWidth }) => {
         </button>
       </div>
 
-      {/* Navigation - Empty as requested */}
+      {/* Navigation */}
       <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto">
-        {/* Empty navigation - all items removed except for basic structure */}
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <NavLink
+              key={item.name}
+              to={item.href}
+              className={({ isActive }) =>
+                `flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                } ${isCollapsed && !showText ? 'justify-center' : ''}`
+              }
+            >
+              <Icon className="h-5 w-5 flex-shrink-0" />
+              {showText && (
+                <span className="mr-3 rtl:mr-0 rtl:ml-3">
+                  {item.name}
+                </span>
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* User Section */}

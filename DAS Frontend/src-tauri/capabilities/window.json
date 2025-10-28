@@ -23,6 +23,7 @@
     "core:window:allow-is-focused",
     "core:window:allow-start-dragging",
     "core:window:allow-toggle-maximize",
+    "core:window:allow-set-focus",
     "decorum:allow-show-snap-overlay",
     "core:event:allow-listen",
     "core:event:allow-emit",

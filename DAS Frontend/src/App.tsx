@@ -10,7 +10,7 @@ import { ProjectProvider } from '@/contexts/ProjectContext';
 import { DesktopLayout } from '@/components/layout/DesktopLayout';
 import { SplashScreen } from '@/components/SplashScreen';
 import { FirstRunSetup } from '@/components/FirstRunSetup';
-import { AcademicYearManagementPage } from '@/pages';
+import { AcademicYearManagementPage, DashboardPage } from '@/pages';
 import LoginPage from '@/pages/LoginPage';
 import NotFound from '@/pages/NotFound';
 
@@ -33,7 +33,16 @@ const ProtectedApp = () => {
         const autoOpenSetting = localStorage.getItem('auto_open_academic_year');
         const selectedYearId = localStorage.getItem('selected_academic_year_id');
         
-        if (autoOpenSetting === 'false' || !selectedYearId) {
+        // If we have a selected year, check if it's set as active/default
+        if (selectedYearId) {
+          // If auto_open_academic_year is true or not set (default behavior), go directly to dashboard
+          if (autoOpenSetting !== 'false') {
+            // Don't show year selection, let the router handle navigation
+          } else {
+            setNeedsYearSelection(true);
+          }
+        } else {
+          // No selected year, need to select one
           setNeedsYearSelection(true);
         }
         setCheckingFirstRun(false);
@@ -55,7 +64,16 @@ const ProtectedApp = () => {
             const autoOpenSetting = localStorage.getItem('auto_open_academic_year');
             const selectedYearId = localStorage.getItem('selected_academic_year_id');
             
-            if (autoOpenSetting === 'false' || !selectedYearId) {
+            // If we have a selected year, check if it's set as active/default
+            if (selectedYearId) {
+              // If auto_open_academic_year is true or not set (default behavior), go directly to dashboard
+              if (autoOpenSetting !== 'false') {
+                // Don't show year selection, let the router handle navigation
+              } else {
+                setNeedsYearSelection(true);
+              }
+            } else {
+              // No selected year, need to select one
               setNeedsYearSelection(true);
             }
           }
@@ -100,7 +118,26 @@ const ProtectedApp = () => {
 
   // Show year selection if needed
   if (needsYearSelection) {
-    return <AcademicYearManagementPage />;
+    return <AcademicYearManagementPage onYearSelected={() => setNeedsYearSelection(false)} />;
+  }
+  
+  // Check if we have a selected year and should navigate to dashboard
+  const storedSelectedYearId = localStorage.getItem('selected_academic_year_id');
+  if (storedSelectedYearId && !needsYearSelection) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Check if we should auto-navigate to dashboard
+  const autoOpenSetting = localStorage.getItem('auto_open_academic_year');
+  const selectedYearId = localStorage.getItem('selected_academic_year_id');
+  
+  if (autoOpenSetting === 'true' && selectedYearId) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  // If we have a selected year but auto-open is disabled, still allow navigation to dashboard
+  if (selectedYearId) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
@@ -108,7 +145,7 @@ const ProtectedApp = () => {
       <Route path="/*" element={<DesktopLayout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         {/* Dashboard route - show the main dashboard */}
-        <Route path="dashboard" element={<DesktopLayout />} />
+        <Route path="dashboard" element={<DashboardPage />} />
         {/* Academic Year Management */}
         <Route path="academic-years" element={<AcademicYearManagementPage />} />
         {/* Catch-all for undefined routes */}
